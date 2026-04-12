@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stay.pe - Home</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="logo-section">
+            <span class="logo-text">Stay<span class="logo-dot-pe">.pe</span></span>
+        </div>
+
+        <nav class="main-nav">
+            <a href="#">Alojamientos</a>
+            <a href="#">Explorar</a>
+            <a href="#">Ayuda</a>
+        </nav>
+
+        <div class="header-actions">
+            <!-- HU08: acceso inicial para publicar un inmueble.
+                 La publicación real se completa después del login y según el rol -->
+            <button class="btn btn-light">Publica tu inmueble</button>
+
+            <!-- HU01: inicio de sesión -->
+            <button class="btn btn-primary">Iniciar sesión</button>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container-home">
+                <h1>Encuentra el inmueble ideal para ti</h1>
+                <p class="hero-description">
+                    Busca pisos, locales y edificios disponibles de forma rápida y sencilla.
+                </p>
+
+                <!-- HU07: búsqueda de inmuebles -->
+                <div class="search-bar">
+                    <div class="search-item">
+                        <label for="ubicacion">Dónde</label>
+                        <input type="text" id="ubicacion" placeholder="Distrito o dirección">
+                    </div>
+
+                    <div class="search-item">
+                        <label for="fecha-ingreso">Fecha ingreso</label>
+                        <input type="date" id="fecha-ingreso">
+                    </div>
+
+                    <div class="search-item">
+                        <label for="fecha-salida">Fecha salida</label>
+                        <input type="date" id="fecha-salida">
+                    </div>
+
+                    <div class="search-item">
+                        <label for="tipo">Tipo</label>
+                        <select id="tipo">
+                            <option value="">Seleccione</option>
+                            <option>Piso</option>
+                            <option>Local</option>
+                            <option>Edificio</option>
+                        </select>
+                    </div>
+
+                    <div class="search-button-box">
+                        <!-- HU07: acción de buscar -->
+                        <button class="btn btn-accent">Buscar</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="container-home section">
+            <!-- HU07: exploración por categorías -->
+            <h2>Explora por categoría</h2>
+            <div class="categories">
+                <div class="category-chip">Pisos</div>
+                <div class="category-chip">Locales</div>
+                <div class="category-chip">Edificios</div>
+                <div class="category-chip">Amoblados</div>
+                <div class="category-chip">Cerca al centro</div>
+            </div>
+        </section>
+
+        <section class="container-home section">
+            <!-- HU07: visualización de inmuebles -->
+            <h2>Inmuebles destacados</h2>
+            <p class="section-description">
+                Algunos espacios disponibles para alquilar dentro de la plataforma.
+            </p>
+
+            <div class="property-grid">
+                <article class="property-card">
+                    <div class="property-image">
+                        <img src="images/piso-san-miguel.jpg" alt="Piso en San Miguel">
+                    </div>
+                    <div class="property-info">
+                        <h3>Piso en San Miguel</h3>
+                        <p>2 habitaciones · 1 baño · 3 personas</p>
+                        <p class="property-location">San Miguel, Lima</p>
+                        <p class="property-price">S/ 1,500 / mes</p>
+                        <div class="property-actions">
+                            <!-- HU07: ver detalle del inmueble -->
+                            <button class="btn btn-secondary">Ver detalle</button>
+
+                            <!-- HU09: solicitud de reserva -->
+                            <button class="btn btn-primary">Reservar</button>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="property-card">
+                    <div class="property-image">
+                        <img src="images/local-jesus-maria.jpg" alt="Local en Jesús María">
+                    </div>
+                    <div class="property-info">
+                        <h3>Local en Jesús María</h3>
+                        <p>60 m² · Zona comercial · 1 ambiente</p>
+                        <p class="property-location">Jesús María, Lima</p>
+                        <p class="property-price">S/ 2,200 / mes</p>
+                        <div class="property-actions">
+                            <!-- HU07: ver detalle del inmueble -->
+                            <button class="btn btn-secondary">Ver detalle</button>
+
+                            <!-- HU09: solicitud de reserva -->
+                            <button class="btn btn-primary">Reservar</button>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="property-card">
+                    <div class="property-image">
+                        <img src="images/edificio-miraflores.jpg" alt="Edificio en Miraflores">
+                    </div>
+                    <div class="property-info">
+                        <h3>Edificio en Miraflores</h3>
+                        <p>3 niveles · Uso mixto · Alta demanda</p>
+                        <p class="property-location">Miraflores, Lima</p>
+                        <p class="property-price">S/ 8,000 / mes</p>
+                        <div class="property-actions">
+                            <!-- HU07: ver detalle del inmueble -->
+                            <button class="btn btn-secondary">Ver detalle</button>
+
+                            <!-- HU09: solicitud de reserva -->
+                            <button class="btn btn-primary">Reservar</button>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section class="container-home section host-section">
+            <div class="host-box">
+                <h2>¿Tienes un inmueble para alquilar?</h2>
+                <p>
+                    Publica tu piso, local o edificio y llega a más interesados.
+                </p>
+
+                <!-- HU08: acceso inicial a publicar inmueble -->
+                <button class="btn btn-primary">Comenzar a publicar</button>
+            </div>
+        </section>
+    </main>
+
+    <footer class="main-footer">
+        &copy; 2026 Stay.pe - Sistema Integral de Gestión de Inmuebles
+    </footer>
+
+</body>
+</html>
