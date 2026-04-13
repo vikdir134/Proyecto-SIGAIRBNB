@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stay.pe - Mi Perfil</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="logo-section">
+            <a href="../HomePage.html" class="logo-link">
+                <span class="logo-text">Stay<span class="logo-dot-pe">.pe</span></span>
+            </a>
+        </div>
+
+        <nav class="main-nav">
+            <a href="homePage.html">Inicio</a>
+            <a href="#">Mis Reservas</a>
+            <a href="#">Ayuda</a>
+        </nav>
+
+        <div class="header-actions">
+            <span class="user-name-header">Juan Pérez</span>
+            <button class="btn btn-light" onclick="window.location.href='login.html'">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <!-- HU02: Edición de nombre y foto de perfil -->
+    <main class="container-home">
+        <section class="profile-section">
+            <div class="section-header">
+                <h1>Configuración de Perfil</h1>
+                <p class="section-description">Gestiona tu información personal y preferencias de contacto.</p>
+            </div>
+
+            <form class="profile-form">
+                <div class="profile-photo-edit">
+                    <div class="avatar-container">
+                        <img src="https://via.placeholder.com/120" alt="Foto de perfil" class="avatar-large" id="profile-img">
+                    </div>
+                    <div class="photo-controls">
+                        <label for="photo-upload" class="btn btn-light">Cambiar foto</label>
+                        <input type="file" id="photo-upload" accept="image/*" style="display: none;">
+                        <p class="text-small">JPG o PNG. Máximo 2MB.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="input-group">
+                        <label for="nombre">Nombre</label>
+                        <input type="text" id="nombre" value="Juan" placeholder="Tu nombre">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="apellido">Apellidos</label>
+                        <input type="text" id="apellido" value="Pérez" placeholder="Tus apellidos">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="email-display">Correo Electrónico</label>
+                        <input type="email" id="email-display" value="juan.perez@ejemplo.com" disabled>
+                        <small>El correo no se puede cambiar por seguridad.</small>
+                    </div>
+                </div>
+
+                <hr class="divider">
+
+                <!-- HU02: Configuración de notificaciones -->
+                <div class="notifications-settings">
+                    <h3>Preferencias de Notificaciones</h3>
+                    <div class="checkbox-group">
+                        <label class="checkbox-container">
+                            <input type="checkbox" checked name="notif-email">
+                            <span class="checkmark"></span>
+                            Recibir alertas de reservas por Email
+                        </label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" name="notif-push">
+                            <span class="checkmark"></span>
+                            Recibir notificaciones Push en el navegador
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-light" onclick="window.location.href='homePage.html'">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <footer class="main-footer">
+        &copy; 2026 Stay.pe - Sistema Integral de Gestión de Inmuebles
+    </footer>
+
+</body>
+</html>

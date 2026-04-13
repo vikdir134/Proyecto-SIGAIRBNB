@@ -20,6 +20,10 @@ body {
     color: var(--text-dark);
 }
 
+a {
+    text-decoration: none;
+}
+
 .main-header {
     background-color: var(--white);
     border-bottom: 1px solid #eee;
@@ -235,6 +239,8 @@ body {
     font-weight: bold;
     font-size: 0.95rem;
     transition: background 0.2s;
+    text-decoration: none;
+    display: inline-block;
 }
 
 .btn-primary {

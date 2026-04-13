@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Stay.pe - Registro</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <main class="auth-container">
+        <div class="logo-section">
+            <a href="../HomePage.html" class="logo-link">
+                <span class="logo-text">Stay<span class="logo-dot-pe">.pe</span></span>
+            </a>
+        </div>
+
+        <form class="auth-form">
+            <h2>Crea tu cuenta</h2>
+            <p>Únete a Stay.pe para gestionar tus alquileres.</p>
+            
+            <div class="input-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required placeholder="juan@correo.com">
+            </div>
+
+            <div class="input-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" required placeholder="Mínimo 8 caracteres">
+            </div>
+            
+            <!-- HU01: Verificación de email -->
+            <button onclick="window.location.href='verificar-email.html'" type="submit" class="btn btn-primary">Registrarse</button>
+            <p class="auth-switch">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></p>
+        </form>
+    </main>
+</body>
+</html>
