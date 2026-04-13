@@ -1,36 +1,48 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <title>Stay.pe - Registro</title>
     <link rel="stylesheet" href="../styles.css">
 </head>
-<body>
-    <main class="auth-container">
+
+<body class="auth-body">
+    <header class="main-header">
         <div class="logo-section">
             <a href="../HomePage.html" class="logo-link">
                 <span class="logo-text">Stay<span class="logo-dot-pe">.pe</span></span>
             </a>
         </div>
+    </header>
 
-        <form class="auth-form">
-            <h2>Crea tu cuenta</h2>
-            <p>Únete a Stay.pe para gestionar tus alquileres.</p>
-            
-            <div class="input-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" required placeholder="juan@correo.com">
-            </div>
+    <main class="login-main">
+        <div class="login-container">
+            <form>
+                <h2>Crea tu cuenta</h2>
+                <p>Únete a Stay.pe para gestionar tus alquileres.</p>
 
-            <div class="input-group">
-                <label for="password">Contraseña</label>
-                <input type="password" id="password" required placeholder="Mínimo 8 caracteres">
-            </div>
-            
-            <!-- HU01: Verificación de email -->
-            <button onclick="window.location.href='verificar-email.html'" type="submit" class="btn btn-primary">Registrarse</button>
-            <p class="auth-switch">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></p>
-        </form>
+                <div class="search-item">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" required placeholder="juan@correo.com">
+                </div>
+
+                <div class="search-item">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" required placeholder="Mínimo 8 caracteres">
+                </div>
+
+                <!-- HU01: Verificación de email -->
+                <button onclick="window.location.href='verificar-email.html'" type="submit"
+                    class="btn btn-primary btn-block btn-margin">Registrarse</button>
+                <p class="auth-switch">¿Ya tienes cuenta? <a class="login-link" href="login.html">Inicia sesión</a></p>
+            </form>
+        </div>
     </main>
+
+    <footer class="main-footer">
+        &copy; 2026 Stay.pe - Sistema Integral de Gestión de Inmuebles
+    </footer>
 </body>
+
 </html>

@@ -6,8 +6,7 @@
     <title>Stay.pe - Mi Perfil</title>
     <link rel="stylesheet" href="../styles.css">
 </head>
-<body>
-
+<body class="auth-body">
     <header class="main-header">
         <div class="logo-section">
             <a href="../HomePage.html" class="logo-link">
@@ -16,21 +15,21 @@
         </div>
 
         <nav class="main-nav">
-            <a href="homePage.html">Inicio</a>
             <a href="#">Mis Reservas</a>
             <a href="#">Ayuda</a>
         </nav>
 
         <div class="header-actions">
-            <span class="user-name-header">Juan Pérez</span>
-            <button class="btn btn-light" onclick="window.location.href='login.html'">Cerrar Sesión</button>
+            <button class="btn btn-primary">Juan Perez</button>
+            <button class="btn btn-accent" onclick="window.location.href='login.html'">Cerrar Sesión</button>
         </div>
+
     </header>
 
     <!-- HU02: Edición de nombre y foto de perfil -->
-    <main class="container-home">
-        <section class="profile-section">
-            <div class="section-header">
+    <main class="profile-main">
+        <section>
+            <div class="section">
                 <h1>Configuración de Perfil</h1>
                 <p class="section-description">Gestiona tu información personal y preferencias de contacto.</p>
             </div>
@@ -41,19 +40,19 @@
                         <img src="https://via.placeholder.com/120" alt="Foto de perfil" class="avatar-large" id="profile-img">
                     </div>
                     <div class="photo-controls">
-                        <label for="photo-upload" class="btn btn-light">Cambiar foto</label>
+                        <label for="photo-upload" class="btn btn-primary btn-margin">Cambiar foto</label>
                         <input type="file" id="photo-upload" accept="image/*" style="display: none;">
                         <p class="text-small">JPG o PNG. Máximo 2MB.</p>
                     </div>
                 </div>
 
-                <div class="form-grid">
-                    <div class="input-group">
+                <div class="section">
+                    <div>
                         <label for="nombre">Nombre</label>
                         <input type="text" id="nombre" value="Juan" placeholder="Tu nombre">
                     </div>
 
-                    <div class="input-group">
+                    <div>
                         <label for="apellido">Apellidos</label>
                         <input type="text" id="apellido" value="Pérez" placeholder="Tus apellidos">
                     </div>
@@ -68,7 +67,7 @@
                 <hr class="divider">
 
                 <!-- HU02: Configuración de notificaciones -->
-                <div class="notifications-settings">
+                <div class="notifications-settings section">
                     <h3>Preferencias de Notificaciones</h3>
                     <div class="checkbox-group">
                         <label class="checkbox-container">
@@ -84,9 +83,9 @@
                     </div>
                 </div>
 
-                <div class="form-actions">
-                    <button type="button" class="btn btn-light" onclick="window.location.href='homePage.html'">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                <div class="form-actions section">
+                    <button type="button" class="btn btn-light btn-margin" onclick="window.location.href='homePage.html'">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-margin">Guardar Cambios</button>
                 </div>
             </form>
         </section>

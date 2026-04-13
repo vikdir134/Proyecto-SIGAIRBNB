@@ -33,6 +33,9 @@ a {
     align-items: center;
     gap: 20px;
     flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
 .logo-text {
@@ -225,7 +228,7 @@ a {
     text-align: center;
     color: #999;
     font-size: 0.9rem;
-    margin-top: 30px;
+    margin-top: 0;
     padding: 25px;
     border-top: 1px solid #eee;
     background-color: var(--white);
@@ -316,4 +319,48 @@ a {
     height: 100%;
     object-fit: cover;
     display: block;
+}
+
+.auth-body{
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.login-main{
+    flex: 1;
+    display: flex;
+    justify-content: center; 
+    align-items: center;     
+    padding: 60px 70px;
+    margin: 0;
+    background-color: #c9dfc1;
+    background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('./images/local-jesus-maria.jpg'); 
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.login-container {
+    background-color: var(--white);
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+}
+
+.login-link {
+    color: var(--primary-color);
+}
+
+.btn-margin {
+    margin-top: 15px;
+}
+
+.profile-main {
+    text-align: center;
 }
