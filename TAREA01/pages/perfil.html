@@ -34,15 +34,15 @@
                 <p class="section-description">Gestiona tu información personal y preferencias de contacto.</p>
             </div>
 
-            <form class="profile-form">
-                <div class="profile-photo-edit">
-                    <div class="avatar-container">
+            <form>
+                <div>
+                    <div>
                         <img src="https://via.placeholder.com/120" alt="Foto de perfil" class="avatar-large" id="profile-img">
                     </div>
-                    <div class="photo-controls">
+                    <div>
                         <label for="photo-upload" class="btn btn-primary btn-margin">Cambiar foto</label>
                         <input type="file" id="photo-upload" accept="image/*" style="display: none;">
-                        <p class="text-small">JPG o PNG. Máximo 2MB.</p>
+                        <p>JPG o PNG. Máximo 2MB.</p>
                     </div>
                 </div>
 
@@ -64,26 +64,24 @@
                     </div>
                 </div>
 
-                <hr class="divider">
+                <hr>
 
                 <!-- HU02: Configuración de notificaciones -->
-                <div class="notifications-settings section">
+                <div>
                     <h3>Preferencias de Notificaciones</h3>
-                    <div class="checkbox-group">
-                        <label class="checkbox-container">
+                    <div>
+                        <label>
                             <input type="checkbox" checked name="notif-email">
-                            <span class="checkmark"></span>
                             Recibir alertas de reservas por Email
                         </label>
-                        <label class="checkbox-container">
+                        <label>
                             <input type="checkbox" name="notif-push">
-                            <span class="checkmark"></span>
                             Recibir notificaciones Push en el navegador
                         </label>
                     </div>
                 </div>
 
-                <div class="form-actions section">
+                <div class="section">
                     <button type="button" class="btn btn-light btn-margin" onclick="window.location.href='homePage.html'">Cancelar</button>
                     <button type="submit" class="btn btn-primary btn-margin">Guardar Cambios</button>
                 </div>
