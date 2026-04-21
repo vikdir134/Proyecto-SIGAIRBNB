@@ -39,7 +39,7 @@ CREATE TABLE core.Empresa
     telefono_contacto       NVARCHAR(30) NULL,
     direccion_fiscal        NVARCHAR(255) NULL,
     ciudad                  NVARCHAR(100) NULL,
-    pais                    NVARCHAR(100) NOT NULL DEFAULT 'Perú',
+    pais                    NVARCHAR(100) NOT NULL DEFAULT 'Perï¿½',
     moneda_base             CHAR(3) NOT NULL DEFAULT 'PEN',
     activo                  BIT NOT NULL DEFAULT 1,
     created_at              DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
@@ -102,12 +102,12 @@ CREATE TABLE core.PerfilUsuario
     direccion                   NVARCHAR(255) NULL,
     distrito                    NVARCHAR(100) NULL,
     ciudad                      NVARCHAR(100) NULL,
-    pais                        NVARCHAR(100) NOT NULL DEFAULT 'Perú',
+    pais                        NVARCHAR(100) NOT NULL DEFAULT 'Perï¿½',
     recibe_notif_email          BIT NOT NULL DEFAULT 1,
     recibe_notif_push           BIT NOT NULL DEFAULT 1,
     recibe_notif_sms            BIT NOT NULL DEFAULT 0,
 
-    -- Datos básicos para vetting simplificado del inquilino
+    -- Datos bï¿½sicos para vetting simplificado del inquilino
     ingreso_mensual_referencial DECIMAL(12,2) NULL,
     tiene_aval_bancario         BIT NOT NULL DEFAULT 0,
     tiene_contrato_trabajo      BIT NOT NULL DEFAULT 0,
@@ -124,7 +124,7 @@ CREATE TABLE core.PerfilUsuario
 );
 GO
 
--- Relación usuario-rol
+-- Relaciï¿½n usuario-rol
 CREATE TABLE auth.UsuarioRol
 (
     usuario_rol_id           INT IDENTITY(1,1) PRIMARY KEY,
@@ -154,7 +154,7 @@ CREATE TABLE auth.SesionUsuario
 );
 GO
 
--- Tokens de verificación de email
+-- Tokens de verificaciï¿½n de email
 CREATE TABLE auth.TokenVerificacionEmail
 (
     token_verificacion_id    INT IDENTITY(1,1) PRIMARY KEY,
@@ -168,7 +168,7 @@ CREATE TABLE auth.TokenVerificacionEmail
 );
 GO
 
--- Tokens de recuperación de contraseña
+-- Tokens de recuperaciï¿½n de contraseï¿½a
 CREATE TABLE auth.TokenRecuperacionPassword
 (
     token_recuperacion_id    INT IDENTITY(1,1) PRIMARY KEY,
@@ -206,7 +206,7 @@ CREATE TABLE catalog.Inmueble
     provincia                NVARCHAR(100) NULL,
     departamento             NVARCHAR(100) NULL,
     codigo_postal            NVARCHAR(20) NULL,
-    pais                     NVARCHAR(100) NOT NULL DEFAULT 'Perú',
+    pais                     NVARCHAR(100) NOT NULL DEFAULT 'Perï¿½',
 
     planta                   NVARCHAR(20) NULL,
     letra                    NVARCHAR(20) NULL,
@@ -245,7 +245,7 @@ CREATE TABLE catalog.Inmueble
 );
 GO
 
--- Catálogo flexible de características
+-- Catï¿½logo flexible de caracterï¿½sticas
 CREATE TABLE catalog.Caracteristica
 (
     caracteristica_id        INT IDENTITY(1,1) PRIMARY KEY,
@@ -259,7 +259,7 @@ CREATE TABLE catalog.Caracteristica
 );
 GO
 
--- Características asignadas por inmueble
+-- Caracterï¿½sticas asignadas por inmueble
 CREATE TABLE catalog.InmuebleCaracteristica
 (
     inmueble_caracteristica_id   INT IDENTITY(1,1) PRIMARY KEY,
@@ -276,7 +276,7 @@ CREATE TABLE catalog.InmuebleCaracteristica
 );
 GO
 
--- Publicación del inmueble
+-- Publicaciï¿½n del inmueble
 CREATE TABLE catalog.Publicacion
 (
     publicacion_id            INT IDENTITY(1,1) PRIMARY KEY,
@@ -301,7 +301,7 @@ CREATE TABLE catalog.Publicacion
 );
 GO
 
--- Fotos del inmueble/publicación
+-- Fotos del inmueble/publicaciï¿½n
 CREATE TABLE catalog.InmuebleFoto
 (
     inmueble_foto_id          INT IDENTITY(1,1) PRIMARY KEY,
@@ -402,7 +402,7 @@ CREATE TABLE booking.ReservaEvento
 );
 GO
 
--- Evaluación del inquilino
+-- Evaluaciï¿½n del inquilino
 CREATE TABLE booking.EvaluacionInquilino
 (
     evaluacion_inquilino_id  INT IDENTITY(1,1) PRIMARY KEY,
@@ -420,7 +420,7 @@ CREATE TABLE booking.EvaluacionInquilino
 );
 GO
 
--- Solicitudes de extensión
+-- Solicitudes de extensiï¿½n
 CREATE TABLE booking.SolicitudExtension
 (
     solicitud_extension_id   INT IDENTITY(1,1) PRIMARY KEY,
@@ -445,7 +445,7 @@ GO
    FACTURACION
    ========================================================= */
 
--- Catálogo de conceptos de cobro
+-- Catï¿½logo de conceptos de cobro
 CREATE TABLE finance.ConceptoCobro
 (
     concepto_cobro_id        INT IDENTITY(1,1) PRIMARY KEY,
@@ -466,7 +466,7 @@ CREATE TABLE finance.ConceptoCobro
 );
 GO
 
--- Configuración de conceptos por inmueble
+-- Configuraciï¿½n de conceptos por inmueble
 CREATE TABLE finance.ConfiguracionCobroInmueble
 (
     configuracion_cobro_id   INT IDENTITY(1,1) PRIMARY KEY,
@@ -498,7 +498,7 @@ CREATE TABLE finance.IndiceIPC
 );
 GO
 
--- Histórico de tarifas/renta por inmueble
+-- Histï¿½rico de tarifas/renta por inmueble
 CREATE TABLE finance.TarifaInmueble
 (
     tarifa_inmueble_id       INT IDENTITY(1,1) PRIMARY KEY,
@@ -659,7 +659,7 @@ CREATE TABLE finance.CuentaBancaria
 );
 GO
 
--- Categorías de movimientos: gasto o ingreso
+-- Categorï¿½as de movimientos: gasto o ingreso
 CREATE TABLE finance.CategoriaMovimiento
 (
     categoria_movimiento_id  INT IDENTITY(1,1) PRIMARY KEY,
