@@ -13,7 +13,7 @@ function Login() {
 
     return (
         <>
-            <body className="auth-body">
+            <div className="auth-body">
                 <header className="main-header">
                     <div className="logo-section">
                         <Link to="/">
@@ -55,7 +55,7 @@ function Login() {
                 <footer className="main-footer">
                     &copy; 2026 Stay.pe - Sistema Integral de Gestión de Inmuebles
                 </footer>
-            </body>
+            </div>
         </>
     );
 }
