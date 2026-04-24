@@ -336,7 +336,7 @@ a {
     padding: 60px 70px;
     margin: 0;
     background-color: #c9dfc1;
-    background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('./images/local-jesus-maria.jpg'); 
+    background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('images/local-jesus-maria.jpg'); 
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
