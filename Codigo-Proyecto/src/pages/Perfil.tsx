@@ -1,15 +1,75 @@
-import { Link } from "react-router-dom";
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from 'react-router-dom';
+import API_URL from '../services/api';
+
+type PerfilUsuario = {
+    nombres: string;
+    apellidos: string;
+    telefono?: string | null;
+    tipo_documento?: string | null;
+    numero_documento?: string | null;
+    ciudad?: string | null;
+    pais?: string | null;
+    foto_url?: string | null;
+};
+
+type Usuario = {
+    usuario_id: number;
+    correo: string;
+    estado: string;
+    email_verificado: boolean;
+    roles: string[];
+    perfil: PerfilUsuario;
+};
 
 function Perfil() {
     const navigate = useNavigate();
 
-    const handleHomePage = (e: React.FormEvent) => {
-        e.preventDefault(); // Evita que la página se recargue por el type="submit"
+    const [usuario, setUsuario] = useState<Usuario | null>(null);
+    const [error, setError] = useState('');
+    const [cargando, setCargando] = useState(true);
 
-        // Navega a la ruta del perfil
-        navigate('/');
+    const obtenerPerfil = async () => {
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            navigate('/Login');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/auth/me`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setError(data.mensaje || 'No se pudo obtener el perfil');
+                return;
+            }
+
+            setUsuario(data.usuario);
+
+        } catch (error) {
+            setError('No se pudo conectar con el servidor');
+        } finally {
+            setCargando(false);
+        }
     };
+
+    const cerrarSesion = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+        navigate('/Login');
+    };
+
+    useEffect(() => {
+        obtenerPerfil();
+    }, []);
 
     return (
         <>
@@ -21,79 +81,80 @@ function Perfil() {
                         </Link>
                     </div>
 
-                    <nav className="main-nav">
-                        <Link to="#">Mis Reservas</Link>
-                        <Link to="#">Ayuda</Link>
-                    </nav>
-
-                    <div className="header-actions">
-                        <button className="btn btn-primary">Juan Perez</button>
-                        <button className="btn btn-accent" onClick={handleHomePage}>Cerrar Sesión</button>
-                    </div>
-
+                    <button onClick={cerrarSesion} className="btn btn-secondary">
+                        Cerrar sesión
+                    </button>
                 </header>
 
-                {/* HU02: Edición de nombre y foto de perfil */}
-                <main className="profile-main">
-                    <section>
-                        <div className="section">
-                            <h1>Configuración de Perfil</h1>
-                            <p className="section-description">Gestiona tu información personal y preferencias de contacto.</p>
-                        </div>
+                <main className="login-main">
+                    <div className="login-container">
+                        <h2>Mi perfil</h2>
+                        <p>Información de tu cuenta en Stay.pe</p>
 
-                        <form>
-                            <div>
-                                <div>
-                                    <img src="" alt="Foto de perfil" />
+                        {cargando && <p>Cargando perfil...</p>}
+
+                        {error && <p className="error-message">{error}</p>}
+
+                        {usuario && (
+                            <div className="profile-box">
+                                <div className="search-item">
+                                    <label>Correo</label>
+                                    <input type="text" value={usuario.correo} disabled />
                                 </div>
-                                <div>
-                                    <label htmlFor="photo-upload" className="btn btn-primary btn-margin">Cambiar foto</label>
-                                    <input type="file" id="photo-upload" accept="image/*" style={{ display: 'none' }} />
-                                    <p>JPG o PNG. Máximo 2MB.</p>
+
+                                <div className="search-item">
+                                    <label>Estado de cuenta</label>
+                                    <input type="text" value={usuario.estado} disabled />
                                 </div>
+
+                                <div className="search-item">
+                                    <label>Roles</label>
+                                    <input type="text" value={usuario.roles.join(', ')} disabled />
+                                </div>
+
+                                <div className="search-item">
+                                    <label>Nombres</label>
+                                    <input type="text" value={usuario.perfil?.nombres || ''} disabled />
+                                </div>
+
+                                <div className="search-item">
+                                    <label>Apellidos</label>
+                                    <input type="text" value={usuario.perfil?.apellidos || ''} disabled />
+                                </div>
+
+                                <div className="search-item">
+                                    <label>Teléfono</label>
+                                    <input type="text" value={usuario.perfil?.telefono || 'No registrado'} disabled />
+                                </div>
+
+                                <div className="search-item">
+                                    <label>Documento</label>
+                                    <input
+                                        type="text"
+                                        value={
+                                            usuario.perfil?.numero_documento
+                                                ? `${usuario.perfil.tipo_documento || ''} ${usuario.perfil.numero_documento}`
+                                                : 'No registrado'
+                                        }
+                                        disabled
+                                    />
+                                </div>
+
+                                <div className="search-item">
+                                    <label>Ubicación</label>
+                                    <input
+                                        type="text"
+                                        value={`${usuario.perfil?.ciudad || 'No registrada'} - ${usuario.perfil?.pais || 'Perú'}`}
+                                        disabled
+                                    />
+                                </div>
+
+                                <Link to="/" className="btn btn-primary btn-block btn-margin">
+                                    Volver al inicio
+                                </Link>
                             </div>
-
-                            <div className="section">
-                                <div>
-                                    <label htmlFor="nombre">Nombre</label>
-                                    <input type="text" id="nombre" value="Juan" placeholder="Tu nombre" />
-                                </div>
-
-                                <div>
-                                    <label htmlFor="apellido">Apellidos</label>
-                                    <input type="text" id="apellido" value="Pérez" placeholder="Tus apellidos" />
-                                </div>
-
-                                <div className="input-group">
-                                    <label htmlFor="email-display">Correo Electrónico</label>
-                                    <input type="email" id="email-display" value="juan.perez@ejemplo.com" disabled />
-                                    <small>El correo no se puede cambiar por seguridad.</small>
-                                </div>
-                            </div>
-
-                            <hr />
-
-                            {/* HU02: Configuración de notificaciones */}
-                            <div>
-                                <h3>Preferencias de Notificaciones</h3>
-                                <div>
-                                    <label>
-                                        <input type="checkbox" checked name="notif-email" />
-                                        Recibir alertas de reservas por Email
-                                    </label>
-                                    <label>
-                                        <input type="checkbox" name="notif-push" />
-                                        Recibir notificaciones Push en el navegador
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="section">
-                                <button type="submit" className="btn btn-light btn-margin">Cancelar</button>
-                                <button type="submit" className="btn btn-primary btn-margin">Guardar Cambios</button>
-                            </div>
-                        </form>
-                    </section>
+                        )}
+                    </div>
                 </main>
 
                 <footer className="main-footer">
