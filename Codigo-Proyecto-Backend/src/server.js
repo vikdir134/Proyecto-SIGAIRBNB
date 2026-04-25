@@ -4,7 +4,7 @@ require('dotenv').config();
 
 const { getConnection } = require('./config/db');
 
-const authRoutes = require('./routes/auth.routes');
+const authRoutes = require('./routes/auth.routes');// aqui conectamos la ruta
 
 const app = express();
 
