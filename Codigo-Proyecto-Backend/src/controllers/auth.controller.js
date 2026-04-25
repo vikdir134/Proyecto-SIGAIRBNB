@@ -154,7 +154,23 @@ const login = async (req, res) => {
   }
 };
 
+const obtenerMiPerfil = async (req, res) => {
+  try {
+    return res.json({
+      mensaje: 'Usuario autenticado correctamente',
+      usuario: req.usuario
+    });
+  } catch (error) {
+    return res.status(500).json({
+      mensaje: 'Error al obtener el perfil del usuario',
+      error: error.message
+    });
+  }
+};
+
+
 module.exports = {
   registrar,
-  login
+  login,
+  obtenerMiPerfil
 };
