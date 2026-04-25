@@ -122,6 +122,17 @@ const login = async (req, res) => {
         mensaje: 'El usuario se encuentra bloqueado'
       });
     }
+    if (!usuario.email_verificado) {
+    return res.status(403).json({
+        mensaje: 'Debes verificar tu correo electrónico antes de iniciar sesión'
+    });
+    }
+
+    if (usuario.estado !== 'ACTIVO') {
+    return res.status(403).json({
+        mensaje: 'Tu cuenta aún no está activa. Verifica tu correo electrónico'
+    });
+    }
 
     const passwordValido = await bcrypt.compare(password, usuario.password_hash);
 

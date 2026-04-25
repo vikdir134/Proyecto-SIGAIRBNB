@@ -45,7 +45,7 @@ function Login() {
             localStorage.setItem('token', data.token);
             localStorage.setItem('usuario', JSON.stringify(data.usuario));
 
-            navigate('/Perfil');
+            navigate('/GestionHome');
 
         } catch (error) {
             setError('No se pudo conectar con el servidor');
