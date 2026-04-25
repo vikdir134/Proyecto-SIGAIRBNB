@@ -6,7 +6,8 @@ const {
   buscarUsuarioPorCorreo,
   registrarUsuario,
   obtenerRolesUsuario,
-  actualizarUltimoAcceso
+  actualizarUltimoAcceso,
+  obtenerUsuarioConPerfil
 } = require('../models/auth.model');
 
 const registrar = async (req, res) => {
@@ -156,11 +157,50 @@ const login = async (req, res) => {
 
 const obtenerMiPerfil = async (req, res) => {
   try {
+    const usuarioPerfil = await obtenerUsuarioConPerfil(req.usuario.usuario_id);
+
+    if (!usuarioPerfil) {
+      return res.status(404).json({
+        mensaje: 'Usuario no encontrado'
+      });
+    }
+
+    const roles = await obtenerRolesUsuario(req.usuario.usuario_id);
+
     return res.json({
-      mensaje: 'Usuario autenticado correctamente',
-      usuario: req.usuario
+      mensaje: 'Perfil obtenido correctamente',
+      usuario: {
+        usuario_id: usuarioPerfil.usuario_id,
+        correo: usuarioPerfil.correo,
+        estado: usuarioPerfil.estado,
+        email_verificado: usuarioPerfil.email_verificado,
+        acepta_terminos: usuarioPerfil.acepta_terminos,
+        ultimo_acceso: usuarioPerfil.ultimo_acceso,
+        roles,
+        perfil: {
+          perfil_usuario_id: usuarioPerfil.perfil_usuario_id,
+          nombres: usuarioPerfil.nombres,
+          apellidos: usuarioPerfil.apellidos,
+          telefono: usuarioPerfil.telefono,
+          tipo_documento: usuarioPerfil.tipo_documento,
+          numero_documento: usuarioPerfil.numero_documento,
+          fecha_nacimiento: usuarioPerfil.fecha_nacimiento,
+          sexo: usuarioPerfil.sexo,
+          foto_url: usuarioPerfil.foto_url,
+          biografia: usuarioPerfil.biografia,
+          direccion: usuarioPerfil.direccion,
+          distrito: usuarioPerfil.distrito,
+          ciudad: usuarioPerfil.ciudad,
+          pais: usuarioPerfil.pais,
+          recibe_notif_email: usuarioPerfil.recibe_notif_email,
+          recibe_notif_push: usuarioPerfil.recibe_notif_push,
+          recibe_notif_sms: usuarioPerfil.recibe_notif_sms
+        }
+      }
     });
   } catch (error) {
+    console.error('Error al obtener mi perfil:', error);
+
     return res.status(500).json({
       mensaje: 'Error al obtener el perfil del usuario',
       error: error.message

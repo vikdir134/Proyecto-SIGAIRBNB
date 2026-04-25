@@ -141,9 +141,52 @@ const actualizarUltimoAcceso = async (usuario_id) => {
     `);
 };
 
+const obtenerUsuarioConPerfil = async (usuario_id) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('usuario_id', sql.Int, usuario_id)
+    .query(`
+      SELECT 
+        u.usuario_id,
+        u.correo,
+        u.estado,
+        u.email_verificado,
+        u.acepta_terminos,
+        u.ultimo_acceso,
+        u.created_at,
+
+        p.perfil_usuario_id,
+        p.nombres,
+        p.apellidos,
+        p.telefono,
+        p.tipo_documento,
+        p.numero_documento,
+        p.fecha_nacimiento,
+        p.sexo,
+        p.foto_url,
+        p.biografia,
+        p.direccion,
+        p.distrito,
+        p.ciudad,
+        p.pais,
+        p.recibe_notif_email,
+        p.recibe_notif_push,
+        p.recibe_notif_sms
+      FROM auth.Usuario u
+      INNER JOIN core.PerfilUsuario p
+        ON p.usuario_id = u.usuario_id
+      WHERE u.usuario_id = @usuario_id
+        AND u.deleted_at IS NULL;
+    `);
+
+  return result.recordset[0];
+};
+
 module.exports = {
   buscarUsuarioPorCorreo,
   registrarUsuario,
   obtenerRolesUsuario,
-  actualizarUltimoAcceso
+  actualizarUltimoAcceso,
+  obtenerUsuarioConPerfil
 };
