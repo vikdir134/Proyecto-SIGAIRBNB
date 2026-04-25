@@ -1,5 +1,7 @@
 const { getConnection, sql } = require('../config/db');
 
+const crypto = require('crypto');
+
 const buscarUsuarioPorCorreo = async (correo) => {
   const pool = await getConnection();
 
@@ -183,10 +185,124 @@ const obtenerUsuarioConPerfil = async (usuario_id) => {
   return result.recordset[0];
 };
 
+const crearTokenVerificacionEmail = async (usuario_id) => {
+  const pool = await getConnection();
+
+  const token = crypto.randomBytes(32).toString('hex');
+
+  await pool.request()
+    .input('usuario_id', sql.Int, usuario_id)
+    .input('token', sql.NVarChar(255), token)
+    .query(`
+      INSERT INTO auth.TokenVerificacionEmail (
+        usuario_id,
+        token,
+        fecha_expiracion,
+        usado
+      )
+      VALUES (
+        @usuario_id,
+        @token,
+        DATEADD(HOUR, 24, SYSDATETIME()),
+        0
+      );
+    `);
+
+  return token;
+};
+
+const verificarTokenEmail = async (token) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    const requestToken = new sql.Request(transaction);
+
+    const tokenResult = await requestToken
+      .input('token', sql.NVarChar(255), token)
+      .query(`
+        SELECT 
+          token_verificacion_id,
+          usuario_id,
+          token,
+          fecha_expiracion,
+          usado
+        FROM auth.TokenVerificacionEmail
+        WHERE token = @token;
+      `);
+
+    const tokenEncontrado = tokenResult.recordset[0];
+
+    if (!tokenEncontrado) {
+      await transaction.rollback();
+      return {
+        ok: false,
+        mensaje: 'Token de verificación no existe'
+      };
+    }
+
+    if (tokenEncontrado.usado) {
+      await transaction.rollback();
+      return {
+        ok: false,
+        mensaje: 'El token ya fue utilizado'
+      };
+    }
+
+    const ahora = new Date();
+    const fechaExpiracion = new Date(tokenEncontrado.fecha_expiracion);
+
+    if (fechaExpiracion < ahora) {
+      await transaction.rollback();
+      return {
+        ok: false,
+        mensaje: 'El token ha expirado'
+      };
+    }
+
+    const requestUsuario = new sql.Request(transaction);
+
+    await requestUsuario
+      .input('usuario_id', sql.Int, tokenEncontrado.usuario_id)
+      .query(`
+        UPDATE auth.Usuario
+        SET email_verificado = 1,
+            estado = 'ACTIVO',
+            updated_at = SYSDATETIME()
+        WHERE usuario_id = @usuario_id;
+      `);
+
+    const requestActualizarToken = new sql.Request(transaction);
+
+    await requestActualizarToken
+      .input('token_verificacion_id', sql.Int, tokenEncontrado.token_verificacion_id)
+      .query(`
+        UPDATE auth.TokenVerificacionEmail
+        SET usado = 1
+        WHERE token_verificacion_id = @token_verificacion_id;
+      `);
+
+    await transaction.commit();
+
+    return {
+      ok: true,
+      mensaje: 'Correo verificado correctamente'
+    };
+
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
 module.exports = {
   buscarUsuarioPorCorreo,
   registrarUsuario,
   obtenerRolesUsuario,
   actualizarUltimoAcceso,
-  obtenerUsuarioConPerfil
+  obtenerUsuarioConPerfil,
+  crearTokenVerificacionEmail,
+  verificarTokenEmail
 };

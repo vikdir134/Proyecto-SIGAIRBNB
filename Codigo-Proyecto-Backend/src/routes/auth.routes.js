@@ -4,7 +4,8 @@ const router = express.Router();
 const {
   registrar,
   login,
-  obtenerMiPerfil
+  obtenerMiPerfil,
+  verificarEmail
 } = require('../controllers/auth.controller');
 
 const {
@@ -13,8 +14,7 @@ const {
 
 router.post('/register', registrar);
 router.post('/login', login);
-
-// Ruta protegida
+router.post('/verify-email', verificarEmail);
 router.get('/me', verificarToken, obtenerMiPerfil);
 
 module.exports = router;

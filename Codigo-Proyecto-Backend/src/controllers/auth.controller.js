@@ -7,8 +7,14 @@ const {
   registrarUsuario,
   obtenerRolesUsuario,
   actualizarUltimoAcceso,
-  obtenerUsuarioConPerfil
+  obtenerUsuarioConPerfil,
+  crearTokenVerificacionEmail,
+  verificarTokenEmail
 } = require('../models/auth.model');
+
+const {
+  enviarCorreoVerificacion
+} = require('../services/email.service');
 
 const registrar = async (req, res) => {
   try {
@@ -58,15 +64,22 @@ const registrar = async (req, res) => {
       apellidos: apellidos.trim(),
       acepta_terminos
     });
+    const tokenVerificacion = await crearTokenVerificacionEmail(usuarioCreado.usuario_id);
+
+        await enviarCorreoVerificacion({
+        correo: correoNormalizado,
+        nombres: nombres.trim(),
+        token: tokenVerificacion
+        });
 
     return res.status(201).json({
-      mensaje: 'Usuario registrado correctamente',
-      usuario: {
+    mensaje: 'Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.',
+    usuario: {
         usuario_id: usuarioCreado.usuario_id,
         correo: usuarioCreado.correo,
         estado: usuarioCreado.estado,
         email_verificado: usuarioCreado.email_verificado
-      }
+    }
     });
   } catch (error) {
     console.error('Error al registrar usuario:', error);
@@ -207,10 +220,42 @@ const obtenerMiPerfil = async (req, res) => {
     });
   }
 };
+const verificarEmail = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        mensaje: 'El token de verificación es obligatorio'
+      });
+    }
+
+    const resultado = await verificarTokenEmail(token);
+
+    if (!resultado.ok) {
+      return res.status(400).json({
+        mensaje: resultado.mensaje
+      });
+    }
+
+    return res.json({
+      mensaje: resultado.mensaje
+    });
+
+  } catch (error) {
+    console.error('Error al verificar email:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al verificar email',
+      error: error.message
+    });
+  }
+};
 
 
 module.exports = {
   registrar,
   login,
-  obtenerMiPerfil
+  obtenerMiPerfil,
+  verificarEmail
 };
