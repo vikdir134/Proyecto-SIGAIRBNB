@@ -1,6 +1,46 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import API_URL from '../services/api';
 
 function RecuperarPassword() {
+    const [correo, setCorreo] = useState('');
+    const [mensaje, setMensaje] = useState('');
+    const [error, setError] = useState('');
+    const [cargando, setCargando] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        setMensaje('');
+        setError('');
+        setCargando(true);
+
+        try {
+            const response = await fetch(`${API_URL}/auth/forgot-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ correo })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setError(data.mensaje || 'No se pudo enviar el enlace');
+                return;
+            }
+
+            setMensaje(data.mensaje);
+            setCorreo('');
+
+        } catch (error) {
+            setError('No se pudo conectar con el servidor');
+        } finally {
+            setCargando(false);
+        }
+    };
+
     return (
         <>
             <div className="auth-body">
@@ -22,13 +62,30 @@ function RecuperarPassword() {
                         <h2>¿Olvidaste tu contraseña?</h2>
                         <p>Ingresa tu correo electrónico y te enviaremos un enlace para restablecerla.</p>
 
-                        <form action="verificar-email.html">
+                        <form onSubmit={handleSubmit}>
                             <div className="search-item">
                                 <label htmlFor="email-recovery">Correo electrónico</label>
-                                <input type="email" id="email-recovery" name="email" placeholder="ejemplo@correo.com" required />
+                                <input
+                                    type="email"
+                                    id="email-recovery"
+                                    name="correo"
+                                    placeholder="ejemplo@correo.com"
+                                    required
+                                    value={correo}
+                                    onChange={(e) => setCorreo(e.target.value)}
+                                />
                             </div>
 
-                            <button type="submit" className="btn btn-primary btn-block btn-margin">Enviar enlace</button>
+                            <button
+                                type="submit"
+                                className="btn btn-primary btn-block btn-margin"
+                                disabled={cargando}
+                            >
+                                {cargando ? 'Enviando...' : 'Enviar enlace'}
+                            </button>
+
+                            {mensaje && <p className="success-message">{mensaje}</p>}
+                            {error && <p className="error-message">{error}</p>}
                         </form>
 
                         <div>

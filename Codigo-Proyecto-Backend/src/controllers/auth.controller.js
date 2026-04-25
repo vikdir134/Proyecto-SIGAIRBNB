@@ -9,11 +9,14 @@ const {
   actualizarUltimoAcceso,
   obtenerUsuarioConPerfil,
   crearTokenVerificacionEmail,
-  verificarTokenEmail
+  verificarTokenEmail,
+  crearTokenRecuperacionPassword,
+restablecerPasswordConToken
 } = require('../models/auth.model');
 
 const {
-  enviarCorreoVerificacion
+  enviarCorreoVerificacion,
+  enviarCorreoRecuperacionPassword
 } = require('../services/email.service');
 
 const registrar = async (req, res) => {
@@ -263,10 +266,99 @@ const verificarEmail = async (req, res) => {
   }
 };
 
+const solicitarRecuperacionPassword = async (req, res) => {
+  try {
+    const { correo } = req.body;
+
+    if (!correo) {
+      return res.status(400).json({
+        mensaje: 'El correo electrónico es obligatorio'
+      });
+    }
+
+    const correoNormalizado = correo.trim().toLowerCase();
+
+    const usuario = await buscarUsuarioPorCorreo(correoNormalizado);
+
+    /*
+      Por seguridad, aunque el correo no exista,
+      respondemos con un mensaje general.
+    */
+    if (!usuario) {
+      return res.json({
+        mensaje: 'Si el correo existe, recibirás un enlace para restablecer tu contraseña'
+      });
+    }
+
+    const token = await crearTokenRecuperacionPassword(usuario.usuario_id);
+
+    await enviarCorreoRecuperacionPassword({
+      correo: usuario.correo,
+      token
+    });
+
+    return res.json({
+      mensaje: 'Si el correo existe, recibirás un enlace para restablecer tu contraseña'
+    });
+
+  } catch (error) {
+    console.error('Error al solicitar recuperación de contraseña:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al solicitar recuperación de contraseña',
+      error: error.message
+    });
+  }
+};
+
+const restablecerPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token || !password) {
+      return res.status(400).json({
+        mensaje: 'Token y nueva contraseña son obligatorios'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        mensaje: 'La contraseña debe tener como mínimo 6 caracteres'
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const resultado = await restablecerPasswordConToken({
+      token,
+      password_hash: passwordHash
+    });
+
+    if (!resultado.ok) {
+      return res.status(400).json({
+        mensaje: resultado.mensaje
+      });
+    }
+
+    return res.json({
+      mensaje: resultado.mensaje
+    });
+
+  } catch (error) {
+    console.error('Error al restablecer contraseña:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al restablecer contraseña',
+      error: error.message
+    });
+  }
+};
 
 module.exports = {
   registrar,
   login,
   obtenerMiPerfil,
-  verificarEmail
+  verificarEmail,
+  solicitarRecuperacionPassword,
+  restablecerPassword
 };

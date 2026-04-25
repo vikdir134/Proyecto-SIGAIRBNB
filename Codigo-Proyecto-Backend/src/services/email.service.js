@@ -43,6 +43,40 @@ const enviarCorreoVerificacion = async ({ correo, nombres, token }) => {
   });
 };
 
+const enviarCorreoRecuperacionPassword = async ({ correo, token }) => {
+  const resetUrl = `${process.env.FRONTEND_URL}/RestablecerPassword?token=${token}`;
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: correo,
+    subject: 'Restablece tu contraseña en Stay.pe',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+        <h2>Restablecimiento de contraseña</h2>
+
+        <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en Stay.pe.</p>
+
+        <p>Haz clic en el siguiente botón para crear una nueva contraseña:</p>
+
+        <p style="margin: 24px 0;">
+          <a href="${resetUrl}"
+             style="background:#a20f46;color:white;padding:12px 20px;text-decoration:none;border-radius:8px;">
+            Restablecer contraseña
+          </a>
+        </p>
+
+        <p>Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+
+        <p>${resetUrl}</p>
+
+        <p>Este enlace vencerá en 1 hora.</p>
+
+        <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+      </div>
+    `
+  });
+};
 module.exports = {
-  enviarCorreoVerificacion
+  enviarCorreoVerificacion,
+  enviarCorreoRecuperacionPassword
 };

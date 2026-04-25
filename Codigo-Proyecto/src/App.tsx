@@ -12,6 +12,8 @@ import GestionEdificio from './pages/GestionEdificio';
 import GestionUnidad from './pages/GestionUnidad';
 import GestionMantenimiento from './pages/GestionMantenimiento';
 
+import RestablecerPassword from './pages/RestablecerPassword';
+
 function App() {
   return (
     <BrowserRouter>
@@ -22,12 +24,14 @@ function App() {
         <Route path='/Registro' element={<Registro />} />
         <Route path='/VerificarEmail' element={<VerificarEmail />} />
         <Route path='/RecuperarPassword' element={<RecuperarPassword />} />
+        <Route path='/RestablecerPassword' element={<RestablecerPassword />} />
 
         <Route path='/GestionHome' element={<GestionHome />} />
         <Route path='/GestionPerfil' element={<GestionPerfil />} />
         <Route path='/GestionEdificio' element={<GestionEdificio />} />
         <Route path='/GestionUnidad' element={<GestionUnidad />} />
         <Route path='/GestionMantenimiento' element={<GestionMantenimiento />} />
+        
       </Routes>
     </BrowserRouter>
   );

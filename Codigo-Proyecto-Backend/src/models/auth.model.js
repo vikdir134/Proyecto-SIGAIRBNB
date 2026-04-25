@@ -296,6 +296,118 @@ const verificarTokenEmail = async (token) => {
     throw error;
   }
 };
+const crearTokenRecuperacionPassword = async (usuario_id) => {
+  const pool = await getConnection();
+
+  const token = crypto.randomBytes(32).toString('hex');
+
+  await pool.request()
+    .input('usuario_id', sql.Int, usuario_id)
+    .input('token', sql.NVarChar(255), token)
+    .query(`
+      INSERT INTO auth.TokenRecuperacionPassword (
+        usuario_id,
+        token,
+        fecha_expiracion,
+        usado
+      )
+      VALUES (
+        @usuario_id,
+        @token,
+        DATEADD(HOUR, 24, SYSDATETIME()),
+        0
+      );
+    `);
+
+  return token;
+};
+
+const restablecerPasswordConToken = async ({ token, password_hash }) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    const requestToken = new sql.Request(transaction);
+
+    const tokenResult = await requestToken
+      .input('token', sql.NVarChar(255), token)
+      .query(`
+        SELECT
+          token_recuperacion_id,
+          usuario_id,
+          token,
+          fecha_expiracion,
+          usado,
+          CASE 
+            WHEN fecha_expiracion < SYSDATETIME() THEN 1 
+            ELSE 0 
+          END AS expirado
+        FROM auth.TokenRecuperacionPassword
+        WHERE token = @token;
+      `);
+
+    const tokenEncontrado = tokenResult.recordset[0];
+
+    if (!tokenEncontrado) {
+      await transaction.rollback();
+      return {
+        ok: false,
+        mensaje: 'Token de recuperación no existe'
+      };
+    }
+
+    if (tokenEncontrado.usado) {
+      await transaction.rollback();
+      return {
+        ok: false,
+        mensaje: 'Este enlace ya fue utilizado'
+      };
+    }
+
+    if (tokenEncontrado.expirado) {
+      await transaction.rollback();
+      return {
+        ok: false,
+        mensaje: 'El enlace de recuperación ha expirado'
+      };
+    }
+
+    const requestUsuario = new sql.Request(transaction);
+
+    await requestUsuario
+      .input('usuario_id', sql.Int, tokenEncontrado.usuario_id)
+      .input('password_hash', sql.NVarChar(255), password_hash)
+      .query(`
+        UPDATE auth.Usuario
+        SET password_hash = @password_hash,
+            updated_at = SYSDATETIME()
+        WHERE usuario_id = @usuario_id;
+      `);
+
+    const requestActualizarToken = new sql.Request(transaction);
+
+    await requestActualizarToken
+      .input('token_recuperacion_id', sql.Int, tokenEncontrado.token_recuperacion_id)
+      .query(`
+        UPDATE auth.TokenRecuperacionPassword
+        SET usado = 1
+        WHERE token_recuperacion_id = @token_recuperacion_id;
+      `);
+
+    await transaction.commit();
+
+    return {
+      ok: true,
+      mensaje: 'Contraseña restablecida correctamente'
+    };
+
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
 
 module.exports = {
   buscarUsuarioPorCorreo,
@@ -304,5 +416,7 @@ module.exports = {
   actualizarUltimoAcceso,
   obtenerUsuarioConPerfil,
   crearTokenVerificacionEmail,
-  verificarTokenEmail
+  verificarTokenEmail,
+  crearTokenRecuperacionPassword,
+  restablecerPasswordConToken
 };
