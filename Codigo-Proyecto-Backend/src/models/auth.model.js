@@ -108,8 +108,42 @@ const registrarUsuario = async ({
     throw error;
   }
 };
+// Esta funcion trae el ROL DE USUARIO "Pendiente de modificar a una PROCEDURE EN SQL SERVER"
+const obtenerRolesUsuario = async (usuario_id) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('usuario_id', sql.Int, usuario_id)
+    .query(`
+      SELECT 
+        r.nombre
+      FROM auth.UsuarioRol ur
+      INNER JOIN auth.Rol r
+        ON r.rol_id = ur.rol_id
+      WHERE ur.usuario_id = @usuario_id
+        AND r.activo = 1;
+    `);
+
+  return result.recordset.map(rol => rol.nombre);
+};
+
+// Esta funcion actualiza el UltimoAcesso, "Pendiente de modificar a un PROCEDURE en SQL Server"
+const actualizarUltimoAcceso = async (usuario_id) => {
+  const pool = await getConnection();
+
+  await pool.request()
+    .input('usuario_id', sql.Int, usuario_id)
+    .query(`
+      UPDATE auth.Usuario
+      SET ultimo_acceso = SYSDATETIME(),
+          updated_at = SYSDATETIME()
+      WHERE usuario_id = @usuario_id;
+    `);
+};
 
 module.exports = {
   buscarUsuarioPorCorreo,
-  registrarUsuario
+  registrarUsuario,
+  obtenerRolesUsuario,
+  actualizarUltimoAcceso
 };
