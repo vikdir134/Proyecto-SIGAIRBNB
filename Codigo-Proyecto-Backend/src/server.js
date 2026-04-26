@@ -5,6 +5,7 @@ require('dotenv').config();
 const { getConnection } = require('./config/db');
 
 const authRoutes = require('./routes/auth.routes');// aqui conectamos la ruta
+const edificioRoutes = require('./routes/edificio.routes');
 
 const app = express();
 
@@ -12,6 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/edificios', edificioRoutes);
 
 app.get('/', (req, res) => {
   res.json({
