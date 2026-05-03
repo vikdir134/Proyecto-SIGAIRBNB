@@ -6,7 +6,17 @@ const {
   registrarPisoLocal,
   listarPisosLocalesPorEdificio,
   buscarUnidadPorUbicacion,
-  buscarUnidadPorId
+  buscarUnidadPorId,
+
+  // HU05 - Mantenimiento de Datos
+  listarInmueblesMantenimiento,
+  buscarInmuebleMantenimientoPorId,
+  contarUnidadesActivasPorEdificio,
+  darBajaLogicaInmueble,
+  actualizarInmuebleMantenimiento,
+  listarCatalogoCaracteristicas,
+  listarCaracteristicasPorInmueble,
+  actualizarCaracteristicasInmueble
 } = require('../models/edificio.model');
 
 const limpiarTexto = (valor) => {
@@ -441,10 +451,564 @@ const obtenerUnidadPorId = async (req, res) => {
   }
 };
 
+const obtenerInmueblesMantenimiento = async (req, res) => {
+  try {
+    /*
+      Por ahora usamos empresa_id = 1.
+      Luego se podrá obtener desde el token JWT.
+    */
+    const empresaId = 1;
+
+    const inmuebles = await listarInmueblesMantenimiento(empresaId);
+
+    return res.json({
+      mensaje: 'Inmuebles obtenidos correctamente para mantenimiento',
+      total: inmuebles.length,
+      inmuebles
+    });
+
+  } catch (error) {
+    console.error('Error al listar inmuebles para mantenimiento:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al listar inmuebles para mantenimiento',
+      error: error.message
+    });
+  }
+};
+
+const obtenerInmuebleMantenimientoPorId = async (req, res) => {
+  try {
+    const { inmueble_id } = req.params;
+
+    const inmuebleIdNumero = Number(inmueble_id);
+
+    if (Number.isNaN(inmuebleIdNumero) || inmuebleIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El ID del inmueble no es válido'
+      });
+    }
+
+    /*
+      Por ahora usamos empresa_id = 1.
+      Luego se podrá obtener desde el token JWT.
+    */
+    const empresaId = 1;
+
+    const inmueble = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
+
+    if (!inmueble) {
+      return res.status(404).json({
+        mensaje: 'El inmueble no existe o no pertenece a la empresa'
+      });
+    }
+
+    return res.json({
+      mensaje: 'Inmueble obtenido correctamente',
+      inmueble
+    });
+
+  } catch (error) {
+    console.error('Error al obtener inmueble para mantenimiento:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al obtener inmueble para mantenimiento',
+      error: error.message
+    });
+  }
+};
+
+const darBajaInmueble = async (req, res) => {
+  try {
+    const { inmueble_id } = req.params;
+
+    const inmuebleIdNumero = Number(inmueble_id);
+
+    if (Number.isNaN(inmuebleIdNumero) || inmuebleIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El ID del inmueble no es válido'
+      });
+    }
+
+    /*
+      Por ahora usamos empresa_id = 1.
+      Luego se podrá obtener desde el token JWT.
+    */
+    const empresaId = 1;
+
+    const inmueble = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
+
+    if (!inmueble) {
+      return res.status(404).json({
+        mensaje: 'El inmueble no existe o ya fue dado de baja'
+      });
+    }
+
+    if (inmueble.activo === false || inmueble.activo === 0) {
+      return res.status(400).json({
+        mensaje: 'El inmueble ya se encuentra inactivo'
+      });
+    }
+
+    /*
+      Regla de seguridad:
+      Si se intenta dar de baja un EDIFICIO que todavía tiene pisos/locales activos,
+      no se permite la baja directa para evitar dejar unidades huérfanas activas.
+    */
+    if (inmueble.tipo_inmueble === 'EDIFICIO') {
+      const totalUnidadesActivas = await contarUnidadesActivasPorEdificio(
+        empresaId,
+        inmuebleIdNumero
+      );
+
+      if (totalUnidadesActivas > 0) {
+        return res.status(409).json({
+          mensaje: 'No se puede dar de baja el edificio porque tiene pisos/locales activos asociados',
+          total_unidades_activas: totalUnidadesActivas
+        });
+      }
+    }
+
+    const inmuebleDadoBaja = await darBajaLogicaInmueble(empresaId, inmuebleIdNumero);
+
+    return res.json({
+      mensaje: 'Inmueble dado de baja correctamente',
+      inmueble: inmuebleDadoBaja
+    });
+
+  } catch (error) {
+    console.error('Error al dar de baja inmueble:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al dar de baja inmueble',
+      error: error.message
+    });
+  }
+};
+
+const actualizarInmueble = async (req, res) => {
+  try {
+    const { inmueble_id } = req.params;
+
+    const inmuebleIdNumero = Number(inmueble_id);
+
+    if (Number.isNaN(inmuebleIdNumero) || inmuebleIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El ID del inmueble no es válido'
+      });
+    }
+
+    const empresaId = 1;
+
+    const inmuebleActual = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
+
+    if (!inmuebleActual) {
+      return res.status(404).json({
+        mensaje: 'El inmueble no existe o no pertenece a la empresa'
+      });
+    }
+
+    if (inmuebleActual.activo === false || inmuebleActual.activo === 0) {
+      return res.status(400).json({
+        mensaje: 'No se puede modificar un inmueble dado de baja'
+      });
+    }
+
+    const {
+      nombre,
+      descripcion,
+      direccion_linea1,
+      direccion_linea2,
+      numero,
+      distrito,
+      ciudad,
+      provincia,
+      departamento,
+      codigo_postal,
+      pais,
+      subtipo_unidad,
+      planta,
+      letra,
+      area_m2,
+      num_habitaciones,
+      num_banos,
+      capacidad_personas,
+      renta_base_mensual,
+      moneda,
+      latitud,
+      longitud,
+      estado_operativo,
+      es_publicable
+    } = req.body;
+
+    const nombreLimpio = limpiarTexto(nombre);
+
+    if (!nombreLimpio) {
+      return res.status(400).json({
+        mensaje: 'El nombre del inmueble es obligatorio'
+      });
+    }
+
+    if (nombreLimpio.length > 150) {
+      return res.status(400).json({
+        mensaje: 'El nombre del inmueble no debe superar los 150 caracteres'
+      });
+    }
+
+    const estadosPermitidos = [
+      'DISPONIBLE',
+      'RESERVADO',
+      'OCUPADO',
+      'MANTENIMIENTO',
+      'INACTIVO'
+    ];
+
+    const estadoNormalizado = limpiarTexto(estado_operativo || inmuebleActual.estado_operativo).toUpperCase();
+
+    if (!estadosPermitidos.includes(estadoNormalizado)) {
+      return res.status(400).json({
+        mensaje: 'El estado operativo no es válido'
+      });
+    }
+
+    const areaConvertida = convertirNumeroOpcional(area_m2);
+    const latitudConvertida = convertirNumeroOpcional(latitud);
+    const longitudConvertida = convertirNumeroOpcional(longitud);
+    const rentaConvertida = convertirNumeroOpcional(renta_base_mensual);
+    const habitacionesConvertidas = convertirNumeroOpcional(num_habitaciones);
+    const banosConvertidos = convertirNumeroOpcional(num_banos);
+    const capacidadConvertida = convertirNumeroOpcional(capacidad_personas);
+
+    const errores = [];
+
+    if (areaConvertida !== null && (Number.isNaN(areaConvertida) || areaConvertida <= 0)) {
+      errores.push('El área en m² debe ser mayor a 0');
+    }
+
+    if (latitudConvertida !== null && (Number.isNaN(latitudConvertida) || latitudConvertida < -90 || latitudConvertida > 90)) {
+      errores.push('La latitud debe estar entre -90 y 90');
+    }
+
+    if (longitudConvertida !== null && (Number.isNaN(longitudConvertida) || longitudConvertida < -180 || longitudConvertida > 180)) {
+      errores.push('La longitud debe estar entre -180 y 180');
+    }
+
+    if (rentaConvertida !== null && (Number.isNaN(rentaConvertida) || rentaConvertida < 0)) {
+      errores.push('La renta base mensual no puede ser negativa');
+    }
+
+    if (habitacionesConvertidas !== null && (Number.isNaN(habitacionesConvertidas) || habitacionesConvertidas < 0)) {
+      errores.push('El número de habitaciones no puede ser negativo');
+    }
+
+    if (banosConvertidos !== null && (Number.isNaN(banosConvertidos) || banosConvertidos < 0)) {
+      errores.push('El número de baños no puede ser negativo');
+    }
+
+    if (capacidadConvertida !== null && (Number.isNaN(capacidadConvertida) || capacidadConvertida < 0)) {
+      errores.push('La capacidad de personas no puede ser negativa');
+    }
+
+    if (errores.length > 0) {
+      return res.status(400).json({
+        mensaje: 'Existen datos inválidos',
+        errores
+      });
+    }
+
+    if (inmuebleActual.tipo_inmueble === 'EDIFICIO') {
+      if (!limpiarTexto(direccion_linea1) || !limpiarTexto(numero) || !limpiarTexto(codigo_postal)) {
+        return res.status(400).json({
+          mensaje: 'Para editar un edificio, dirección principal, número y código postal son obligatorios'
+        });
+      }
+    }
+
+    if (inmuebleActual.tipo_inmueble === 'PISO' || inmuebleActual.tipo_inmueble === 'LOCAL') {
+      if (!limpiarTexto(planta) || !limpiarTexto(letra)) {
+        return res.status(400).json({
+          mensaje: 'Para editar un piso/local, planta y letra son obligatorios'
+        });
+      }
+    }
+
+    const inmuebleActualizado = await actualizarInmuebleMantenimiento({
+      empresa_id: empresaId,
+      inmueble_id: inmuebleIdNumero,
+
+      nombre: nombreLimpio,
+      descripcion: limpiarTexto(descripcion) || null,
+
+      direccion_linea1: limpiarTexto(direccion_linea1),
+      direccion_linea2: limpiarTexto(direccion_linea2) || null,
+      numero: limpiarTexto(numero),
+      distrito: limpiarTexto(distrito) || null,
+      ciudad: limpiarTexto(ciudad) || null,
+      provincia: limpiarTexto(provincia) || null,
+      departamento: limpiarTexto(departamento) || null,
+      codigo_postal: limpiarTexto(codigo_postal),
+      pais: limpiarTexto(pais) || 'Perú',
+
+      subtipo_unidad: limpiarTexto(subtipo_unidad) || null,
+      planta: limpiarTexto(planta) || null,
+      letra: limpiarTexto(letra).toUpperCase() || null,
+
+      area_m2: areaConvertida,
+      num_habitaciones: habitacionesConvertidas,
+      num_banos: banosConvertidos,
+      capacidad_personas: capacidadConvertida,
+      renta_base_mensual: rentaConvertida,
+      moneda: limpiarTexto(moneda).toUpperCase() || 'PEN',
+
+      latitud: latitudConvertida,
+      longitud: longitudConvertida,
+      estado_operativo: estadoNormalizado,
+      es_publicable: es_publicable === undefined ? inmuebleActual.es_publicable : Boolean(es_publicable)
+    });
+
+    return res.json({
+      mensaje: 'Inmueble actualizado correctamente',
+      inmueble: inmuebleActualizado
+    });
+
+  } catch (error) {
+    console.error('Error al actualizar inmueble:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al actualizar inmueble',
+      error: error.message
+    });
+  }
+};
+
+const obtenerCatalogoCaracteristicas = async (req, res) => {
+  try {
+    const caracteristicas = await listarCatalogoCaracteristicas();
+
+    return res.json({
+      mensaje: 'Catálogo de características obtenido correctamente',
+      total: caracteristicas.length,
+      caracteristicas
+    });
+
+  } catch (error) {
+    console.error('Error al obtener catálogo de características:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al obtener catálogo de características',
+      error: error.message
+    });
+  }
+};
+
+const obtenerCaracteristicasDeInmueble = async (req, res) => {
+  try {
+    const { inmueble_id } = req.params;
+
+    const inmuebleIdNumero = Number(inmueble_id);
+
+    if (Number.isNaN(inmuebleIdNumero) || inmuebleIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El ID del inmueble no es válido'
+      });
+    }
+
+    const empresaId = 1;
+
+    const inmueble = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
+
+    if (!inmueble) {
+      return res.status(404).json({
+        mensaje: 'El inmueble no existe o no pertenece a la empresa'
+      });
+    }
+
+    const caracteristicas = await listarCaracteristicasPorInmueble(
+      empresaId,
+      inmuebleIdNumero
+    );
+
+    return res.json({
+      mensaje: 'Características del inmueble obtenidas correctamente',
+      inmueble: {
+        inmueble_id: inmueble.inmueble_id,
+        codigo: inmueble.codigo,
+        nombre: inmueble.nombre,
+        tipo_inmueble: inmueble.tipo_inmueble
+      },
+      total: caracteristicas.length,
+      caracteristicas
+    });
+
+  } catch (error) {
+    console.error('Error al obtener características del inmueble:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al obtener características del inmueble',
+      error: error.message
+    });
+  }
+};
+
+const actualizarCaracteristicasDeInmueble = async (req, res) => {
+  try {
+    const { inmueble_id } = req.params;
+    const { caracteristicas } = req.body;
+
+    const inmuebleIdNumero = Number(inmueble_id);
+
+    if (Number.isNaN(inmuebleIdNumero) || inmuebleIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El ID del inmueble no es válido'
+      });
+    }
+
+    if (!Array.isArray(caracteristicas)) {
+      return res.status(400).json({
+        mensaje: 'Debe enviar un arreglo de características'
+      });
+    }
+
+    const empresaId = 1;
+
+    const inmueble = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
+
+    if (!inmueble) {
+      return res.status(404).json({
+        mensaje: 'El inmueble no existe o no pertenece a la empresa'
+      });
+    }
+
+    if (inmueble.activo === false || inmueble.activo === 0) {
+      return res.status(400).json({
+        mensaje: 'No se pueden editar características de un inmueble dado de baja'
+      });
+    }
+
+    const catalogo = await listarCatalogoCaracteristicas();
+    const mapaCatalogo = new Map();
+
+    catalogo.forEach((item) => {
+      mapaCatalogo.set(item.caracteristica_id, item);
+    });
+
+    const idsRepetidos = new Set();
+    const idsUsados = new Set();
+    const caracteristicasNormalizadas = [];
+    const errores = [];
+
+    for (const item of caracteristicas) {
+      const caracteristicaId = Number(item.caracteristica_id);
+
+      if (Number.isNaN(caracteristicaId) || caracteristicaId <= 0) {
+        errores.push('Existe una característica con ID inválido');
+        continue;
+      }
+
+      if (idsUsados.has(caracteristicaId)) {
+        idsRepetidos.add(caracteristicaId);
+        continue;
+      }
+
+      idsUsados.add(caracteristicaId);
+
+      const caracteristicaCatalogo = mapaCatalogo.get(caracteristicaId);
+
+      if (!caracteristicaCatalogo) {
+        errores.push(`La característica con ID ${caracteristicaId} no existe o no está activa`);
+        continue;
+      }
+
+      let valorTexto = null;
+      let valorNumero = null;
+      let valorBoolean = null;
+
+      if (caracteristicaCatalogo.tipo_dato === 'BOOLEAN') {
+        valorBoolean = Boolean(item.valor_boolean);
+      }
+
+      if (caracteristicaCatalogo.tipo_dato === 'TEXTO') {
+        valorTexto = limpiarTexto(item.valor_texto);
+
+        if (!valorTexto) {
+          errores.push(`La característica ${caracteristicaCatalogo.nombre} requiere un valor de texto`);
+        }
+
+        if (valorTexto.length > 200) {
+          errores.push(`La característica ${caracteristicaCatalogo.nombre} no debe superar los 200 caracteres`);
+        }
+      }
+
+      if (caracteristicaCatalogo.tipo_dato === 'NUMERO') {
+        valorNumero = convertirNumeroOpcional(item.valor_numero);
+
+        if (valorNumero === null || Number.isNaN(valorNumero)) {
+          errores.push(`La característica ${caracteristicaCatalogo.nombre} requiere un valor numérico`);
+        } else if (valorNumero < 0) {
+          errores.push(`La característica ${caracteristicaCatalogo.nombre} no puede ser negativa`);
+        }
+      }
+
+      caracteristicasNormalizadas.push({
+        caracteristica_id: caracteristicaId,
+        valor_texto: valorTexto,
+        valor_numero: valorNumero,
+        valor_boolean: valorBoolean
+      });
+    }
+
+    if (idsRepetidos.size > 0) {
+      errores.push('No se puede enviar la misma característica más de una vez');
+    }
+
+    if (errores.length > 0) {
+      return res.status(400).json({
+        mensaje: 'Existen errores en las características enviadas',
+        errores
+      });
+    }
+
+    const caracteristicasActualizadas = await actualizarCaracteristicasInmueble(
+      empresaId,
+      inmuebleIdNumero,
+      caracteristicasNormalizadas
+    );
+
+    return res.json({
+      mensaje: 'Características del inmueble actualizadas correctamente',
+      inmueble: {
+        inmueble_id: inmueble.inmueble_id,
+        codigo: inmueble.codigo,
+        nombre: inmueble.nombre,
+        tipo_inmueble: inmueble.tipo_inmueble
+      },
+      total: caracteristicasActualizadas.length,
+      caracteristicas: caracteristicasActualizadas
+    });
+
+  } catch (error) {
+    console.error('Error al actualizar características del inmueble:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al actualizar características del inmueble',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   crearEdificio,
   obtenerEdificios,
   crearPisoLocal,
   obtenerUnidadesPorEdificio,
-  obtenerUnidadPorId
+  obtenerUnidadPorId,
+
+  // HU05 - Mantenimiento de Datos
+  obtenerInmueblesMantenimiento,
+  obtenerInmuebleMantenimientoPorId,
+  darBajaInmueble,
+  actualizarInmueble,
+  obtenerCatalogoCaracteristicas,
+  obtenerCaracteristicasDeInmueble,
+  actualizarCaracteristicasDeInmueble
 };
