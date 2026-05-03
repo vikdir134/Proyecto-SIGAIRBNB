@@ -1,7 +1,12 @@
 const {
   buscarEdificioPorCodigo,
   registrarEdificio,
-  listarEdificios
+  listarEdificios,
+  buscarEdificioPadrePorId,
+  registrarPisoLocal,
+  listarPisosLocalesPorEdificio,
+  buscarUnidadPorUbicacion,
+  buscarUnidadPorId
 } = require('../models/edificio.model');
 
 const crearEdificio = async (req, res) => {
@@ -105,7 +110,272 @@ const obtenerEdificios = async (req, res) => {
   }
 };
 
+const validarNumero = (valor, nombreCampo, opciones = {}) => {
+  const { obligatorio = false, minimo = 0 } = opciones;
+
+  if (valor === undefined || valor === null || valor === '') {
+    if (obligatorio) {
+      return `${nombreCampo} es obligatorio`;
+    }
+
+    return null;
+  }
+
+  const numero = Number(valor);
+
+  if (Number.isNaN(numero)) {
+    return `${nombreCampo} debe ser un número válido`;
+  }
+
+  if (numero < minimo) {
+    return `${nombreCampo} no puede ser menor que ${minimo}`;
+  }
+
+  return null;
+};
+
+const crearPisoLocal = async (req, res) => {
+  try {
+    const {
+      edificio_id,
+      codigo,
+      tipo_inmueble,
+      nombre,
+      subtipo_unidad,
+      descripcion,
+      planta,
+      letra,
+      area_m2,
+      num_habitaciones,
+      num_banos,
+      capacidad_personas,
+      renta_base_mensual,
+      moneda
+    } = req.body;
+
+    if (!edificio_id || !codigo || !tipo_inmueble || !nombre || !planta || !letra) {
+      return res.status(400).json({
+        mensaje: 'Edificio, código, tipo, nombre, planta y letra son obligatorios'
+      });
+    }
+
+    const edificioIdNumero = Number(edificio_id);
+
+    if (Number.isNaN(edificioIdNumero) || edificioIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El edificio seleccionado no es válido'
+      });
+    }
+
+    const tipoNormalizado = tipo_inmueble.trim().toUpperCase();
+
+    if (tipoNormalizado !== 'PISO' && tipoNormalizado !== 'LOCAL') {
+      return res.status(400).json({
+        mensaje: 'El tipo de inmueble solo puede ser PISO o LOCAL'
+      });
+    }
+
+    if (codigo.length > 30) {
+      return res.status(400).json({
+        mensaje: 'El código no debe superar los 30 caracteres'
+      });
+    }
+
+    const erroresNumericos = [
+      validarNumero(area_m2, 'El área en m²', { minimo: 0.01 }),
+      validarNumero(num_habitaciones, 'El número de habitaciones', { minimo: 0 }),
+      validarNumero(num_banos, 'El número de baños', { minimo: 0 }),
+      validarNumero(capacidad_personas, 'La capacidad de personas', { minimo: 0 }),
+      validarNumero(renta_base_mensual, 'La renta base mensual', { minimo: 0 })
+    ].filter(Boolean);
+
+    if (erroresNumericos.length > 0) {
+      return res.status(400).json({
+        mensaje: 'Existen datos numéricos inválidos',
+        errores: erroresNumericos
+      });
+    }
+
+    const codigoNormalizado = codigo.trim().toUpperCase();
+
+    const unidadExistente = await buscarEdificioPorCodigo(codigoNormalizado);
+
+    if (unidadExistente) {
+      return res.status(409).json({
+        mensaje: 'Ya existe un inmueble con ese código'
+      });
+    }
+
+    /*
+      Por ahora usamos empresa_id = 1, igual que en Registrar Edificio.
+      Luego se podrá obtener desde el token JWT.
+    */
+    const empresaId = 1;
+
+    const edificioPadre = await buscarEdificioPadrePorId(empresaId, edificioIdNumero);
+
+    if (!edificioPadre) {
+      return res.status(404).json({
+        mensaje: 'El edificio seleccionado no existe o no está activo'
+      });
+    }
+
+    const plantaNormalizada = planta.trim();
+    const letraNormalizada = letra.trim().toUpperCase();
+
+    const unidadMismaUbicacion = await buscarUnidadPorUbicacion(
+      empresaId,
+      edificioIdNumero,
+      plantaNormalizada,
+      letraNormalizada
+    );
+
+    if (unidadMismaUbicacion) {
+      return res.status(409).json({
+        mensaje: 'Ya existe un piso/local registrado en esa planta y letra para este edificio',
+        unidad_existente: {
+          inmueble_id: unidadMismaUbicacion.inmueble_id,
+          codigo: unidadMismaUbicacion.codigo,
+          tipo_inmueble: unidadMismaUbicacion.tipo_inmueble,
+          nombre: unidadMismaUbicacion.nombre,
+          planta: unidadMismaUbicacion.planta,
+          letra: unidadMismaUbicacion.letra
+        }
+      });
+    }
+
+    const unidadCreada = await registrarPisoLocal({
+      empresa_id: empresaId,
+      edificio_id: edificioIdNumero,
+      codigo: codigoNormalizado,
+      tipo_inmueble: tipoNormalizado,
+      nombre: nombre.trim(),
+      subtipo_unidad: subtipo_unidad ? subtipo_unidad.trim().toUpperCase() : null,
+      descripcion,
+      planta: plantaNormalizada,
+      letra: letraNormalizada,
+      area_m2: area_m2 !== undefined && area_m2 !== null && area_m2 !== '' ? Number(area_m2) : null,
+      num_habitaciones: num_habitaciones !== undefined && num_habitaciones !== null && num_habitaciones !== '' ? Number(num_habitaciones) : null,
+      num_banos: num_banos !== undefined && num_banos !== null && num_banos !== '' ? Number(num_banos) : null,
+      capacidad_personas: capacidad_personas !== undefined && capacidad_personas !== null && capacidad_personas !== '' ? Number(capacidad_personas) : null,
+      renta_base_mensual: renta_base_mensual !== undefined && renta_base_mensual !== null && renta_base_mensual !== '' ? Number(renta_base_mensual) : null,
+      moneda: moneda ? moneda.trim().toUpperCase() : 'PEN'
+    });
+
+    return res.status(201).json({
+      mensaje: `${tipoNormalizado} registrado correctamente`,
+      edificio_padre: {
+        inmueble_id: edificioPadre.inmueble_id,
+        codigo: edificioPadre.codigo,
+        nombre: edificioPadre.nombre
+      },
+      unidad: unidadCreada
+    });
+
+  } catch (error) {
+    console.error('Error al registrar piso/local:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al registrar piso/local',
+      error: error.message
+    });
+  }
+};
+
+const obtenerUnidadesPorEdificio = async (req, res) => {
+  try {
+    const { edificio_id } = req.params;
+
+    const edificioIdNumero = Number(edificio_id);
+
+    if (Number.isNaN(edificioIdNumero) || edificioIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El ID del edificio no es válido'
+      });
+    }
+
+    /*
+      Por ahora usamos empresa_id = 1, igual que en las demás rutas.
+      Más adelante se podrá obtener desde el token JWT.
+    */
+    const empresaId = 1;
+
+    const edificioPadre = await buscarEdificioPadrePorId(empresaId, edificioIdNumero);
+
+    if (!edificioPadre) {
+      return res.status(404).json({
+        mensaje: 'El edificio no existe o no está activo'
+      });
+    }
+
+    const unidades = await listarPisosLocalesPorEdificio(empresaId, edificioIdNumero);
+
+    return res.json({
+      mensaje: 'Pisos/locales obtenidos correctamente',
+      edificio: {
+        inmueble_id: edificioPadre.inmueble_id,
+        codigo: edificioPadre.codigo,
+        nombre: edificioPadre.nombre
+      },
+      total: unidades.length,
+      unidades
+    });
+
+  } catch (error) {
+    console.error('Error al listar pisos/locales:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al listar pisos/locales',
+      error: error.message
+    });
+  }
+};
+
+const obtenerUnidadPorId = async (req, res) => {
+  try {
+    const { unidad_id } = req.params;
+
+    const unidadIdNumero = Number(unidad_id);
+
+    if (Number.isNaN(unidadIdNumero) || unidadIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El ID del piso/local no es válido'
+      });
+    }
+
+    /*
+      Por ahora usamos empresa_id = 1.
+      Luego se podrá obtener desde el token JWT.
+    */
+    const empresaId = 1;
+
+    const unidad = await buscarUnidadPorId(empresaId, unidadIdNumero);
+
+    if (!unidad) {
+      return res.status(404).json({
+        mensaje: 'El piso/local no existe o no pertenece a la empresa'
+      });
+    }
+
+    return res.json({
+      mensaje: 'Piso/local obtenido correctamente',
+      unidad
+    });
+
+  } catch (error) {
+    console.error('Error al obtener piso/local:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al obtener piso/local',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   crearEdificio,
-  obtenerEdificios
+  obtenerEdificios,
+  crearPisoLocal,
+  obtenerUnidadesPorEdificio,
+  obtenerUnidadPorId
 };
