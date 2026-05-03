@@ -4,8 +4,10 @@ require('dotenv').config();
 
 const { getConnection } = require('./config/db');
 
-const authRoutes = require('./routes/auth.routes');// aqui conectamos la ruta
+// Aqui conectamos las rutas
+const authRoutes = require('./routes/auth.routes');
 const edificioRoutes = require('./routes/edificio.routes');
+const perfilRoutes = require('./routes/perfil.routes');
 
 const app = express();
 
@@ -14,6 +16,7 @@ app.use(express.json());
 
 app.use('/api/auth', authRoutes);
 app.use('/api/edificios', edificioRoutes);
+app.use('/api/perfil', perfilRoutes);
 
 app.get('/', (req, res) => {
   res.json({
