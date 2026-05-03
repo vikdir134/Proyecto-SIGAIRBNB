@@ -9,6 +9,22 @@ const {
   buscarUnidadPorId
 } = require('../models/edificio.model');
 
+const limpiarTexto = (valor) => {
+  if (valor === undefined || valor === null) {
+    return '';
+  }
+
+  return String(valor).trim();
+};
+
+const convertirNumeroOpcional = (valor) => {
+  if (valor === undefined || valor === null || valor === '') {
+    return null;
+  }
+
+  return Number(valor);
+};
+
 const crearEdificio = async (req, res) => {
   try {
     const {
@@ -29,19 +45,72 @@ const crearEdificio = async (req, res) => {
       longitud
     } = req.body;
 
-    if (!codigo || !nombre || !direccion_linea1) {
+    const codigoNormalizado = limpiarTexto(codigo).toUpperCase();
+    const nombreLimpio = limpiarTexto(nombre);
+    const direccionLimpia = limpiarTexto(direccion_linea1);
+    const numeroLimpio = limpiarTexto(numero);
+    const codigoPostalLimpio = limpiarTexto(codigo_postal);
+
+    if (!codigoNormalizado || !nombreLimpio || !direccionLimpia || !numeroLimpio || !codigoPostalLimpio) {
       return res.status(400).json({
-        mensaje: 'Código, nombre y dirección principal son obligatorios'
+        mensaje: 'Código, nombre, dirección principal, número y código postal son obligatorios'
       });
     }
 
-    if (codigo.length > 30) {
+    if (codigoNormalizado.length > 30) {
       return res.status(400).json({
         mensaje: 'El código no debe superar los 30 caracteres'
       });
     }
 
-    const codigoNormalizado = codigo.trim().toUpperCase();
+    if (nombreLimpio.length > 150) {
+      return res.status(400).json({
+        mensaje: 'El nombre del edificio no debe superar los 150 caracteres'
+      });
+    }
+
+    if (direccionLimpia.length > 255) {
+      return res.status(400).json({
+        mensaje: 'La dirección principal no debe superar los 255 caracteres'
+      });
+    }
+
+    if (numeroLimpio.length > 30) {
+      return res.status(400).json({
+        mensaje: 'El número no debe superar los 30 caracteres'
+      });
+    }
+
+    if (codigoPostalLimpio.length > 20) {
+      return res.status(400).json({
+        mensaje: 'El código postal no debe superar los 20 caracteres'
+      });
+    }
+
+    const areaConvertida = convertirNumeroOpcional(area_m2);
+    const latitudConvertida = convertirNumeroOpcional(latitud);
+    const longitudConvertida = convertirNumeroOpcional(longitud);
+
+    const erroresNumericos = [];
+
+    if (areaConvertida !== null && (Number.isNaN(areaConvertida) || areaConvertida <= 0)) {
+      erroresNumericos.push('El área en m² debe ser un número mayor a 0');
+    }
+
+    if (latitudConvertida !== null && (Number.isNaN(latitudConvertida) || latitudConvertida < -90 || latitudConvertida > 90)) {
+      erroresNumericos.push('La latitud debe ser un número entre -90 y 90');
+    }
+
+    if (longitudConvertida !== null && (Number.isNaN(longitudConvertida) || longitudConvertida < -180 || longitudConvertida > 180)) {
+      erroresNumericos.push('La longitud debe ser un número entre -180 y 180');
+    }
+
+    if (erroresNumericos.length > 0) {
+      return res.status(400).json({
+        mensaje: 'Existen datos numéricos inválidos',
+        errores: erroresNumericos
+      });
+    }
 
     const edificioExistente = await buscarEdificioPorCodigo(codigoNormalizado);
 
@@ -59,20 +128,20 @@ const crearEdificio = async (req, res) => {
     const edificioCreado = await registrarEdificio({
       empresa_id: 1,
       codigo: codigoNormalizado,
-      nombre: nombre.trim(),
-      descripcion,
-      direccion_linea1: direccion_linea1.trim(),
-      direccion_linea2,
-      numero,
-      distrito,
-      ciudad,
-      provincia,
-      departamento,
-      codigo_postal,
-      pais,
-      area_m2: area_m2 ? Number(area_m2) : null,
-      latitud: latitud ? Number(latitud) : null,
-      longitud: longitud ? Number(longitud) : null
+      nombre: nombreLimpio,
+      descripcion: limpiarTexto(descripcion) || null,
+      direccion_linea1: direccionLimpia,
+      direccion_linea2: limpiarTexto(direccion_linea2) || null,
+      numero: numeroLimpio,
+      distrito: limpiarTexto(distrito) || null,
+      ciudad: limpiarTexto(ciudad) || null,
+      provincia: limpiarTexto(provincia) || null,
+      departamento: limpiarTexto(departamento) || null,
+      codigo_postal: codigoPostalLimpio,
+      pais: limpiarTexto(pais) || 'Perú',
+      area_m2: areaConvertida,
+      latitud: latitudConvertida,
+      longitud: longitudConvertida
     });
 
     return res.status(201).json({
