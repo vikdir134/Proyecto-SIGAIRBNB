@@ -60,7 +60,6 @@ const registrar = async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const usuarioCreado = await registrarUsuario({
-      empresa_id: 1,
       correo: correoNormalizado,
       password_hash: passwordHash,
       nombres: nombres.trim(),
@@ -79,6 +78,7 @@ const registrar = async (req, res) => {
     mensaje: 'Usuario registrado correctamente. Revisa tu correo para verificar tu cuenta.',
     usuario: {
         usuario_id: usuarioCreado.usuario_id,
+        empresa_id: usuarioCreado.empresa_id,
         correo: usuarioCreado.correo,
         estado: usuarioCreado.estado,
         email_verificado: usuarioCreado.email_verificado
@@ -150,6 +150,7 @@ const login = async (req, res) => {
     const token = jwt.sign(
       {
         usuario_id: usuario.usuario_id,
+        empresa_id: usuario.empresa_id,
         correo: usuario.correo,
         roles
       },
@@ -166,6 +167,7 @@ const login = async (req, res) => {
       token,
       usuario: {
         usuario_id: usuario.usuario_id,
+        empresa_id: usuario.empresa_id,
         correo: usuario.correo,
         estado: usuario.estado,
         email_verificado: usuario.email_verificado,

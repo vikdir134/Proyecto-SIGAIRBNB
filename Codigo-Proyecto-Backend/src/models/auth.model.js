@@ -25,7 +25,6 @@ const buscarUsuarioPorCorreo = async (correo) => {
 };
 
 const registrarUsuario = async ({
-  empresa_id,
   correo,
   password_hash,
   nombres,
@@ -38,10 +37,50 @@ const registrarUsuario = async ({
   try {
     await transaction.begin();
 
+    /*
+      1. Primero creamos una empresa propia para este usuario.
+      Así cada cuenta tendrá su propio empresa_id.
+    */
+    const requestEmpresa = new sql.Request(transaction);
+
+    const empresaResult = await requestEmpresa
+      .input('razon_social', sql.NVarChar(200), `Empresa de ${nombres} ${apellidos}`)
+      .input('nombre_comercial', sql.NVarChar(200), `${nombres} ${apellidos}`)
+      .input('correo_contacto', sql.NVarChar(255), correo)
+      .input('pais', sql.NVarChar(100), 'Perú')
+      .input('moneda_base', sql.Char(3), 'PEN')
+      .query(`
+        INSERT INTO core.Empresa (
+          razon_social,
+          nombre_comercial,
+          correo_contacto,
+          pais,
+          moneda_base,
+          activo
+        )
+        OUTPUT
+          INSERTED.empresa_id,
+          INSERTED.razon_social,
+          INSERTED.nombre_comercial
+        VALUES (
+          @razon_social,
+          @nombre_comercial,
+          @correo_contacto,
+          @pais,
+          @moneda_base,
+          1
+        );
+      `);
+
+    const empresaCreada = empresaResult.recordset[0];
+
+    /*
+      2. Ahora registramos el usuario usando el empresa_id recién creado.
+    */
     const requestUsuario = new sql.Request(transaction);
 
     const usuarioResult = await requestUsuario
-      .input('empresa_id', sql.Int, empresa_id)
+      .input('empresa_id', sql.Int, empresaCreada.empresa_id)
       .input('correo', sql.NVarChar(255), correo)
       .input('password_hash', sql.NVarChar(255), password_hash)
       .input('acepta_terminos', sql.Bit, acepta_terminos)
@@ -54,7 +93,12 @@ const registrarUsuario = async ({
           email_verificado,
           acepta_terminos
         )
-        OUTPUT INSERTED.usuario_id, INSERTED.correo, INSERTED.estado, INSERTED.email_verificado
+        OUTPUT 
+          INSERTED.usuario_id,
+          INSERTED.empresa_id,
+          INSERTED.correo,
+          INSERTED.estado,
+          INSERTED.email_verificado
         VALUES (
           @empresa_id,
           @correo,
@@ -67,6 +111,9 @@ const registrarUsuario = async ({
 
     const usuarioCreado = usuarioResult.recordset[0];
 
+    /*
+      3. Creamos su perfil básico.
+    */
     const requestPerfil = new sql.Request(transaction);
 
     await requestPerfil
@@ -86,6 +133,9 @@ const registrarUsuario = async ({
         );
       `);
 
+    /*
+      4. Asignamos el rol CLIENTE.
+    */
     const requestRol = new sql.Request(transaction);
 
     await requestRol
@@ -105,11 +155,13 @@ const registrarUsuario = async ({
     await transaction.commit();
 
     return usuarioCreado;
+
   } catch (error) {
     await transaction.rollback();
     throw error;
   }
 };
+
 // Esta funcion trae el ROL DE USUARIO "Pendiente de modificar a una PROCEDURE EN SQL SERVER"
 const obtenerRolesUsuario = async (usuario_id) => {
   const pool = await getConnection();

@@ -24,9 +24,16 @@ const verificarToken = (req, res, next) => {
 
     req.usuario = {
       usuario_id: decoded.usuario_id,
+      empresa_id: decoded.empresa_id,
       correo: decoded.correo,
       roles: decoded.roles
     };
+
+    if (!req.usuario.empresa_id) {
+      return res.status(401).json({
+        mensaje: 'Token inválido: no contiene empresa asociada'
+      });
+    }
 
     next();
   } catch (error) {

@@ -1,19 +1,22 @@
 const { getConnection, sql } = require('../config/db');
 
-const buscarEdificioPorCodigo = async (codigo) => {
+const buscarEdificioPorCodigo = async (empresa_id, codigo) => {
   const pool = await getConnection();
 
   const result = await pool.request()
+    .input('empresa_id', sql.Int, empresa_id)
     .input('codigo', sql.NVarChar(30), codigo)
     .query(`
       SELECT 
         inmueble_id,
+        empresa_id,
         codigo,
         nombre,
         tipo_inmueble,
         activo
       FROM catalog.Inmueble
-      WHERE codigo = @codigo
+      WHERE empresa_id = @empresa_id
+        AND codigo = @codigo
         AND deleted_at IS NULL;
     `);
 
@@ -85,6 +88,7 @@ const registrarEdificio = async ({
       )
       OUTPUT 
         INSERTED.inmueble_id,
+        INSERTED.empresa_id,
         INSERTED.codigo,
         INSERTED.nombre,
         INSERTED.tipo_inmueble,

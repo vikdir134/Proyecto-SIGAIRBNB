@@ -122,21 +122,18 @@ const crearEdificio = async (req, res) => {
       });
     }
 
-    const edificioExistente = await buscarEdificioPorCodigo(codigoNormalizado);
+    const empresaId = req.usuario.empresa_id;
+
+    const edificioExistente = await buscarEdificioPorCodigo(empresaId, codigoNormalizado);
 
     if (edificioExistente) {
       return res.status(409).json({
-        mensaje: 'Ya existe un edificio con ese código'
+        mensaje: 'Ya existe un inmueble con ese código en tu empresa'
       });
     }
 
-    /*
-      Por ahora usamos empresa_id = 1 porque en el Sprint 1
-      todos los usuarios se registran asociados a la empresa demo.
-      Más adelante podemos tomar empresa_id desde el token o desde BD.
-    */
     const edificioCreado = await registrarEdificio({
-      empresa_id: 1,
+      empresa_id: empresaId,
       codigo: codigoNormalizado,
       nombre: nombreLimpio,
       descripcion: limpiarTexto(descripcion) || null,
@@ -171,7 +168,8 @@ const crearEdificio = async (req, res) => {
 
 const obtenerEdificios = async (req, res) => {
   try {
-    const edificios = await listarEdificios(1);
+    const empresaId = req.usuario.empresa_id;
+    const edificios = await listarEdificios(empresaId);
 
     return res.json({
       mensaje: 'Edificios obtenidos correctamente',
@@ -277,19 +275,16 @@ const crearPisoLocal = async (req, res) => {
 
     const codigoNormalizado = codigo.trim().toUpperCase();
 
-    const unidadExistente = await buscarEdificioPorCodigo(codigoNormalizado);
+    const unidadExistente = await buscarEdificioPorCodigo(empresaId, codigoNormalizado);
 
     if (unidadExistente) {
       return res.status(409).json({
-        mensaje: 'Ya existe un inmueble con ese código'
+        mensaje: 'Ya existe un inmueble con ese código en tu empresa'
       });
     }
 
-    /*
-      Por ahora usamos empresa_id = 1, igual que en Registrar Edificio.
-      Luego se podrá obtener desde el token JWT.
-    */
-    const empresaId = 1;
+    //empresa_id se obteniene desde el token JWT.
+    const empresaId = req.usuario.empresa_id;
 
     const edificioPadre = await buscarEdificioPadrePorId(empresaId, edificioIdNumero);
 
@@ -373,11 +368,7 @@ const obtenerUnidadesPorEdificio = async (req, res) => {
       });
     }
 
-    /*
-      Por ahora usamos empresa_id = 1, igual que en las demás rutas.
-      Más adelante se podrá obtener desde el token JWT.
-    */
-    const empresaId = 1;
+    const empresaId = req.usuario.empresa_id;
 
     const edificioPadre = await buscarEdificioPadrePorId(empresaId, edificioIdNumero);
 
@@ -422,11 +413,7 @@ const obtenerUnidadPorId = async (req, res) => {
       });
     }
 
-    /*
-      Por ahora usamos empresa_id = 1.
-      Luego se podrá obtener desde el token JWT.
-    */
-    const empresaId = 1;
+    const empresaId = req.usuario.empresa_id;
 
     const unidad = await buscarUnidadPorId(empresaId, unidadIdNumero);
 
@@ -457,7 +444,7 @@ const obtenerInmueblesMantenimiento = async (req, res) => {
       Por ahora usamos empresa_id = 1.
       Luego se podrá obtener desde el token JWT.
     */
-    const empresaId = 1;
+    const empresaId = req.usuario.empresa_id;
 
     const inmuebles = await listarInmueblesMantenimiento(empresaId);
 
@@ -493,7 +480,7 @@ const obtenerInmuebleMantenimientoPorId = async (req, res) => {
       Por ahora usamos empresa_id = 1.
       Luego se podrá obtener desde el token JWT.
     */
-    const empresaId = 1;
+    const empresaId = req.usuario.empresa_id;
 
     const inmueble = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
 
@@ -534,7 +521,7 @@ const darBajaInmueble = async (req, res) => {
       Por ahora usamos empresa_id = 1.
       Luego se podrá obtener desde el token JWT.
     */
-    const empresaId = 1;
+    const empresaId = req.usuario.empresa_id;
 
     const inmueble = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
 
@@ -598,7 +585,7 @@ const actualizarInmueble = async (req, res) => {
       });
     }
 
-    const empresaId = 1;
+    const empresaId = req.usuario.empresa_id;
 
     const inmuebleActual = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
 
@@ -813,7 +800,7 @@ const obtenerCaracteristicasDeInmueble = async (req, res) => {
       });
     }
 
-    const empresaId = 1;
+    const empresaId = req.usuario.empresa_id;
 
     const inmueble = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
 
@@ -869,7 +856,7 @@ const actualizarCaracteristicasDeInmueble = async (req, res) => {
       });
     }
 
-    const empresaId = 1;
+    const empresaId = req.usuario.empresa_id;
 
     const inmueble = await buscarInmuebleMantenimientoPorId(empresaId, inmuebleIdNumero);
 
