@@ -7,6 +7,7 @@ function SidebarGestion() {
 
     const [nombreUsuario, setNombreUsuario] = useState('Usuario');
     const [iniciales, setIniciales] = useState('U');
+    const [esAdmin, setEsAdmin] = useState(false);
 
     const cargarDatosUsuario = async () => {
         const token = localStorage.getItem('token');
@@ -15,6 +16,26 @@ function SidebarGestion() {
             return;
         }
 
+        /*
+            Primero leemos el usuario guardado después del login.
+            Ahí deberían venir los roles: CLIENTE, ADMIN, etc.
+        */
+        const usuarioGuardado = localStorage.getItem('usuario');
+
+        if (usuarioGuardado) {
+            try {
+                const usuario = JSON.parse(usuarioGuardado);
+                const roles = usuario.roles || [];
+
+                setEsAdmin(roles.includes('ADMIN'));
+            } catch (error) {
+                console.error('No se pudo leer el usuario del localStorage:', error);
+            }
+        }
+
+        /*
+            Luego cargamos el perfil para mostrar nombre e iniciales.
+        */
         try {
             const response = await fetch(`${API_URL}/perfil`, {
                 method: 'GET',
@@ -41,7 +62,9 @@ function SidebarGestion() {
             const inicialNombre = nombres.charAt(0).toUpperCase();
             const inicialApellido = apellidos.charAt(0).toUpperCase();
 
-            setIniciales(`${inicialNombre}${inicialApellido}` || 'U');
+            const nuevasIniciales = `${inicialNombre}${inicialApellido}`.trim();
+
+            setIniciales(nuevasIniciales || 'U');
 
         } catch (error) {
             console.error('No se pudo cargar el perfil en el sidebar:', error);
@@ -73,6 +96,11 @@ function SidebarGestion() {
                     <NavLink to="/GestionEdificio">Registrar Edificio</NavLink>
                     <NavLink to="/GestionUnidad">Registrar Piso / Local</NavLink>
                     <NavLink to="/GestionMantenimiento">Mantenimiento</NavLink>
+
+                    {esAdmin && (
+                        <NavLink to="/GestionAdmin">Mantenimiento Admin</NavLink>
+                    )}
+
                     <NavLink to="/GestionPerfil">Perfil</NavLink>
                 </nav>
             </div>
