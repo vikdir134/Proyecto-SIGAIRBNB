@@ -1,3 +1,4 @@
+//auth.model.js
 const { getConnection, sql } = require('../config/db');
 
 const crypto = require('crypto');
