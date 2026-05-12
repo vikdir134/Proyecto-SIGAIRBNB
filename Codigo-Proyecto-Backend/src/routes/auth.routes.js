@@ -11,8 +11,7 @@ const {
 } = require('../controllers/auth.controller');
 
 const {
-  verificarToken,
-  autorizarRoles
+  verificarToken
 } = require('../middlewares/auth.middleware');
 
 router.post('/register', registrar);
@@ -21,12 +20,6 @@ router.post('/verify-email', verificarEmail);
 router.get('/me', verificarToken, obtenerMiPerfil);
 router.post('/forgot-password', solicitarRecuperacionPassword);
 router.post('/reset-password', restablecerPassword);
-/*Ruta de prueba */
-router.get('/admin-test', verificarToken, autorizarRoles('ADMIN'), (req, res) => {
-  res.json({
-    mensaje: 'Acceso ADMIN permitido',
-    usuario: req.usuario
-  });
-});
+
 
 module.exports = router;

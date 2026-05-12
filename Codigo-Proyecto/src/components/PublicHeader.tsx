@@ -1,0 +1,166 @@
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+function PublicHeader() {
+    const navigate = useNavigate();
+
+    const [usuarioSesion, setUsuarioSesion] = useState<any>(null);
+    const [menuAbierto, setMenuAbierto] = useState(false);
+
+    useEffect(() => {
+        const usuarioGuardado = localStorage.getItem('usuario');
+
+        if (usuarioGuardado) {
+            try {
+                const usuario = JSON.parse(usuarioGuardado);
+                setUsuarioSesion(usuario);
+            } catch (error) {
+                console.error('No se pudo leer el usuario del localStorage:', error);
+                localStorage.removeItem('usuario');
+                localStorage.removeItem('token');
+            }
+        }
+    }, []);
+
+    const cerrarSesion = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('usuario');
+
+        setUsuarioSesion(null);
+        setMenuAbierto(false);
+
+        navigate('/');
+    };
+
+    const obtenerInicial = () => {
+        if (!usuarioSesion?.correo) {
+            return 'U';
+        }
+
+        return usuarioSesion.correo.charAt(0).toUpperCase();
+    };
+
+    const esAdmin = usuarioSesion?.roles?.includes('ADMIN');
+
+    return (
+        <header className="main-header">
+            <div className="logo-section">
+                <Link to="/">
+                    <span className="logo-text">
+                        Stay<span className="logo-dot-pe">.pe</span>
+                    </span>
+                </Link>
+            </div>
+
+            <nav className="main-nav">
+                <a href="#buscar">Buscar</a>
+                <a href="#categorias">Categorías</a>
+                <a href="#destacados">Inmuebles</a>
+                <a href="#propietarios">Propietarios</a>
+            </nav>
+
+            <div className="header-actions">
+                <Link
+                    to={usuarioSesion ? '/GestionEdificio' : '/Login'}
+                    className="btn btn-light"
+                >
+                    Publica tu inmueble
+                </Link>
+
+                {!usuarioSesion && (
+                    <>
+                        <Link to="/Registro" className="btn btn-light">
+                            Crear cuenta
+                        </Link>
+
+                        <Link to="/Login" className="btn btn-primary">
+                            Iniciar sesión
+                        </Link>
+                    </>
+                )}
+
+                {usuarioSesion && (
+                    <div className="user-menu-wrapper">
+                        <button
+                            type="button"
+                            className="user-menu-button"
+                            onClick={() => setMenuAbierto(!menuAbierto)}
+                        >
+                            <span className="user-avatar-small">
+                                {obtenerInicial()}
+                            </span>
+
+                            <span className="user-menu-name">
+                                Mi cuenta
+                            </span>
+                        </button>
+
+                        {menuAbierto && (
+                            <div className="user-dropdown">
+                                <div className="user-dropdown-header">
+                                    <div className="user-avatar-large">
+                                        {obtenerInicial()}
+                                    </div>
+
+                                    <div>
+                                        <strong>{usuarioSesion.correo}</strong>
+                                        <p>{esAdmin ? 'Administrador' : 'Usuario'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="user-dropdown-divider" />
+
+                                <button
+                                    type="button"
+                                    className="user-dropdown-item"
+                                    onClick={() => {
+                                        setMenuAbierto(false);
+                                        navigate('/Perfil');
+                                    }}
+                                >
+                                    Mi perfil público
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="user-dropdown-item"
+                                    onClick={() => {
+                                        setMenuAbierto(false);
+                                        navigate('/GestionHome');
+                                    }}
+                                >
+                                    Panel de gestión
+                                </button>
+
+                                {esAdmin && (
+                                    <button
+                                        type="button"
+                                        className="user-dropdown-item"
+                                        onClick={() => {
+                                            setMenuAbierto(false);
+                                            navigate('/GestionAdmin');
+                                        }}
+                                    >
+                                        Mantenimiento Admin
+                                    </button>
+                                )}
+
+                                <div className="user-dropdown-divider" />
+
+                                <button
+                                    type="button"
+                                    className="user-dropdown-item logout-item"
+                                    onClick={cerrarSesion}
+                                >
+                                    Cerrar sesión
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </header>
+    );
+}
+
+export default PublicHeader;

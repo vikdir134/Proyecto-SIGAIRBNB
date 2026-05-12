@@ -92,6 +92,7 @@ function SidebarGestion() {
                 </div>
 
                 <nav className="sidebar-menu">
+                    <NavLink to="/" end>Volver al inicio</NavLink>
                     <NavLink to="/GestionHome">Dashboard</NavLink>
                     <NavLink to="/GestionEdificio">Registrar Edificio</NavLink>
                     <NavLink to="/GestionUnidad">Registrar Piso / Local</NavLink>
