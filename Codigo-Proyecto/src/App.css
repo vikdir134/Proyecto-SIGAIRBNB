@@ -678,3 +678,248 @@
     border: 1px solid #ddd;
     border-radius: 8px;
 }
+
+/* ================================
+ CALENDARIO DE DISPONIBILIDAD
+================================ */
+
+.gestion-card select,
+.gestion-card input,
+.gestion-card textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+}
+
+.gestion-card select:focus,
+.gestion-card input:focus,
+.gestion-card textarea:focus {
+    outline: none;
+    border-color: #a20f46;
+}
+
+.gestion-card textarea {
+    resize: vertical;
+    min-height: 70px;
+}
+
+.detalle-inmueble {
+    margin-top: 16px;
+    background: #f4eeee;
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.detalle-inmueble p {
+    margin: 0;
+    color: #333;
+    font-weight: 600;
+}
+
+.calendario-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.calendario-header h2 {
+    margin: 0;
+}
+
+.calendario-header p {
+    margin-top: 6px;
+}
+
+.calendario-header input[type="month"] {
+    max-width: 180px;
+}
+
+.resumen-calendario {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.resumen-calendario span {
+    background: #f4eeee;
+    color: #701130;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 14px;
+}
+
+.calendario-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+}
+
+.calendario-dias-semana {
+    margin-bottom: 8px;
+}
+
+.calendario-dias-semana div {
+    text-align: center;
+    padding: 10px;
+    font-weight: 800;
+    color: #701130;
+    background: #f4eeee;
+    border-radius: 10px;
+}
+
+.calendario-dia {
+    min-height: 86px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 10px;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.calendario-dia strong {
+    color: #111;
+    font-size: 15px;
+}
+
+.calendario-dia small {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: #fdecec;
+    color: #9d1c1c;
+    font-size: 11px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.calendario-bloqueado {
+    background: #fff1f4;
+    border-color: #a20f46;
+}
+
+.calendario-vacio {
+    background: transparent;
+    border: none;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
+
+.gestion-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.gestion-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 800;
+    color: #111;
+}
+
+.gestion-form button,
+.tabla-contenedor button {
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
+    background: #a20f46;
+    color: #ffffff;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.gestion-form button:hover,
+.tabla-contenedor button:hover {
+    background: #701130;
+}
+
+.gestion-form button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.tabla-contenedor {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 18px;
+}
+
+.tabla-contenedor table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #ffffff;
+    border: 1px solid #d8d8d8;
+    min-width: 900px;
+}
+
+.tabla-contenedor th,
+.tabla-contenedor td {
+    border: 1px solid #d8d8d8;
+    padding: 13px 12px;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 14px;
+}
+
+.tabla-contenedor th {
+    background: #f4eeee;
+    font-weight: 800;
+    color: #111;
+}
+
+.tabla-contenedor tbody tr:hover {
+    background: #faf6f6;
+}
+
+@media (max-width: 950px) {
+    .detalle-inmueble,
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .calendario-header {
+        flex-direction: column;
+    }
+
+    .calendario-grid {
+        gap: 5px;
+    }
+
+    .calendario-dia {
+        min-height: 64px;
+        padding: 8px;
+    }
+}
+
+.acciones-tabla {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.acciones-tabla button:first-child {
+    background: #e6dadd;
+    color: #701130;
+}
+
+.acciones-tabla button:first-child:hover {
+    background: #d8c4ca;
+}

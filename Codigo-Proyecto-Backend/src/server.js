@@ -9,6 +9,7 @@ const authRoutes = require('./routes/auth.routes');
 const edificioRoutes = require('./routes/edificio.routes');
 const perfilRoutes = require('./routes/perfil.routes');
 const adminRoutes = require('./routes/admin.routes');
+const disponibilidadRoutes = require('./routes/disponibilidad.routes');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/edificios', edificioRoutes);
 app.use('/api/perfil', perfilRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/disponibilidad', disponibilidadRoutes);
 
 app.get('/', (req, res) => {
   res.json({

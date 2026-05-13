@@ -14,6 +14,7 @@ import GestionEdificio from './pages/GestionEdificio';
 import GestionUnidad from './pages/GestionUnidad';
 import GestionMantenimiento from './pages/GestionMantenimiento';
 import GestionAdmin from './pages/GestionAdmin';
+import GestionDisponibilidad from './pages/GestionDisponibilidad';
 import RutaAdmin from './components/RutaAdmin';
 
 import RestablecerPassword from './pages/RestablecerPassword';
@@ -35,8 +36,10 @@ function App() {
         <Route path='/GestionEdificio' element={<GestionEdificio />} />
         <Route path='/GestionUnidad' element={<GestionUnidad />} />
         <Route path='/GestionMantenimiento' element={<GestionMantenimiento />} />
-        <Route path='/GestionAdmin' element={<RutaAdmin><GestionAdmin /></RutaAdmin>}
-/>
+        <Route path='/GestionAdmin' element={<RutaAdmin><GestionAdmin /></RutaAdmin>}/>
+        <Route path="/GestionDisponibilidad" element={<GestionDisponibilidad />} 
+        />
+
         
       </Routes>
     </BrowserRouter>
