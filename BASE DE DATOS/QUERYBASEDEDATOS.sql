@@ -2,6 +2,7 @@
    BASE DE DATOS: SistemaIntegralGestionAirbnb
    Motor       : SQL Server
    Enfoque     : Modelamiento completo (DDL)
+    Ahora la BBDD esta en la nube de AZURE sigaairdnb5.database.windows.net
    ========================================================= */
 
 IF DB_ID('SistemaIntegralGestionAirbnb') IS NULL

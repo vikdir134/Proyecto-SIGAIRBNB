@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-function PublicHeader() {
+interface PublicHeaderProps {
+    mostrarFiltros?: boolean;
+    onAbrirFiltros?: () => void;
+}
+
+function PublicHeader({
+    mostrarFiltros = false,
+    onAbrirFiltros
+}: PublicHeaderProps) {
     const navigate = useNavigate();
 
     const [usuarioSesion, setUsuarioSesion] = useState<any>(null);
@@ -60,6 +68,16 @@ function PublicHeader() {
             </nav>
 
             <div className="header-actions">
+                {mostrarFiltros && (
+                    <button
+                        type="button"
+                        className="btn btn-light header-filter-button"
+                        onClick={onAbrirFiltros}
+                    >
+                        Filtros
+                    </button>
+                )}
+
                 <Link
                     to={usuarioSesion ? '/GestionEdificio' : '/Login'}
                     className="btn btn-light"

@@ -16,6 +16,7 @@ import GestionMantenimiento from './pages/GestionMantenimiento';
 import GestionAdmin from './pages/GestionAdmin';
 import GestionDisponibilidad from './pages/GestionDisponibilidad';
 import RutaAdmin from './components/RutaAdmin';
+import BusquedaPage from './pages/BusquedaPage';
 
 import RestablecerPassword from './pages/RestablecerPassword';
 
@@ -39,6 +40,7 @@ function App() {
         <Route path='/GestionAdmin' element={<RutaAdmin><GestionAdmin /></RutaAdmin>}/>
         <Route path="/GestionDisponibilidad" element={<GestionDisponibilidad />} 
         />
+        <Route path="/Busqueda" element={<BusquedaPage />} />
 
         
       </Routes>
