@@ -924,3 +924,200 @@
 .acciones-tabla button:first-child:hover {
     background: #d8c4ca;
 }
+
+/* ================================
+   HU08 - PUBLICACIÓN DE INMUEBLE
+================================ */
+
+.publicacion-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 8px;
+}
+
+.publicacion-checks label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+}
+
+.preview-foto-publicacion {
+    margin-top: 10px;
+    border: 1px solid #ddd;
+    border-radius: 16px;
+    padding: 14px;
+    background: #faf6f6;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.preview-foto-publicacion img {
+    width: 260px;
+    height: 170px;
+    border-radius: 14px;
+    object-fit: cover;
+    background: #e5e5e5;
+}
+
+.acciones-publicacion {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.acciones-publicacion .btn-gestion-primary,
+.acciones-publicacion .btn-gestion-secondary {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+}
+
+/* ================================
+   DIALOG DE CONFIRMACIÓN - GESTIÓN
+================================ */
+
+.confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 5000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+}
+
+.confirm-card {
+    width: 100%;
+    max-width: 430px;
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 28px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+    text-align: center;
+    animation: confirmEntrada 0.18s ease-out;
+}
+
+.confirm-icon {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1.7rem;
+}
+
+.confirm-icon-normal {
+    background: #f3edf0;
+    color: #a60f4f;
+}
+
+.confirm-icon-success {
+    background: #e7f8ee;
+    color: #04753b;
+}
+
+.confirm-icon-danger {
+    background: #fff0f0;
+    color: #b42318;
+}
+
+.confirm-card h2 {
+    margin: 0 0 10px;
+    color: #1f2937;
+    font-size: 1.35rem;
+}
+
+.confirm-card p {
+    margin: 0;
+    color: #5f4b53;
+    line-height: 1.5;
+}
+
+.confirm-actions {
+    margin-top: 24px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.confirm-actions button {
+    min-width: 130px;
+}
+
+.btn-gestion-danger {
+    border: none;
+    border-radius: 12px;
+    background: #b42318;
+    color: #ffffff;
+    padding: 11px 18px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.btn-gestion-danger:hover {
+    background: #9f1f17;
+}
+
+.btn-gestion-danger:disabled,
+.btn-gestion-primary:disabled,
+.btn-gestion-secondary:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+@keyframes confirmEntrada {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.acciones-publicacion {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.acciones-publicacion .btn-gestion-primary,
+.acciones-publicacion .btn-gestion-secondary {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+}
+
+.btn-gestion-danger {
+    border: none;
+    border-radius: 12px;
+    background: #b42318;
+    color: #ffffff;
+    padding: 11px 18px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.btn-gestion-danger:hover {
+    background: #9f1f17;
+}
+
+.btn-gestion-danger:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.acciones-publicacion .btn-gestion-danger {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+}

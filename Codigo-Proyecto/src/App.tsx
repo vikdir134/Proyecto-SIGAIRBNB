@@ -19,6 +19,7 @@ import RutaAdmin from './components/RutaAdmin';
 import BusquedaPage from './pages/BusquedaPage';
 
 import RestablecerPassword from './pages/RestablecerPassword';
+import GestionPublicacion from './pages/GestionPublicacion';
 
 function App() {
   return (
@@ -42,7 +43,8 @@ function App() {
         />
         <Route path="/Busqueda" element={<BusquedaPage />} />
 
-        
+        <Route path="/GestionPublicacion" element={<GestionPublicacion />} />
+       
       </Routes>
     </BrowserRouter>
   );

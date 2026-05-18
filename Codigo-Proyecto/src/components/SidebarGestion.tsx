@@ -98,6 +98,7 @@ function SidebarGestion() {
                     <NavLink to="/GestionUnidad">Registrar Piso / Local</NavLink>
                     <NavLink to="/GestionMantenimiento">Mantenimiento</NavLink>
                     <NavLink to="/GestionDisponibilidad">Disponibilidad</NavLink>
+                    <NavLink to="/GestionPublicacion">Publicar inmueble</NavLink>
 
                     {esAdmin && (
                         <NavLink to="/GestionAdmin">Mantenimiento Admin</NavLink>
