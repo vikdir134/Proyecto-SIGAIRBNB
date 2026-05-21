@@ -144,6 +144,17 @@ function PublicHeader({
                                     className="user-dropdown-item"
                                     onClick={() => {
                                         setMenuAbierto(false);
+                                        navigate('/MisSolicitudesReserva');
+                                    }}
+                                >
+                                    Mis reservas
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="user-dropdown-item"
+                                    onClick={() => {
+                                        setMenuAbierto(false);
                                         navigate('/GestionHome');
                                     }}
                                 >

@@ -321,8 +321,8 @@ const obtenerInmueblesPublicablesGestion = async (req, res) => {
 
 const crearPublicacionGestion = async (req, res) => {
   try {
+    const usuarioId = req.usuario.usuario_id;
     const empresaId = req.usuario.empresa_id;
-
     const {
       inmueble_id,
       titulo,
@@ -412,6 +412,7 @@ const crearPublicacionGestion = async (req, res) => {
 
     const publicacionCreada = await crearPublicacionBorrador({
       inmueble_id: inmuebleIdNumero,
+      publicado_por_usuario_id: usuarioId,
       titulo: tituloLimpio,
       descripcion_corta: descripcionCortaLimpia || null,
       descripcion_larga: limpiarTexto(descripcion_larga) || null,

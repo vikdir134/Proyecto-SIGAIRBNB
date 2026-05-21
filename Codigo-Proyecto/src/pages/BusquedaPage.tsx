@@ -1,8 +1,10 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import PublicHeader from '../components/PublicHeader';
 import FiltrosBusquedaDialog from '../components/FiltrosBusquedaDialog';
 import DetallePublicacionDialog from '../components/DetallePublicacionDialog';
+import SolicitudReservaDialog from '../components/SolicitudReservaDialog';
 
 import {
     listarPublicaciones,
@@ -15,7 +17,7 @@ import {
 
 function BusquedaPage() {
     const [searchParams, setSearchParams] = useSearchParams();
-
+    const navigate = useNavigate();
     const [publicaciones, setPublicaciones] = useState<PublicacionListado[]>([]);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
@@ -25,6 +27,11 @@ function BusquedaPage() {
     const [detalle, setDetalle] = useState<PublicacionDetalle | null>(null);
     const [fotosDetalle, setFotosDetalle] = useState<FotoPublicacion[]>([]);
     const [cargandoDetalle, setCargandoDetalle] = useState(false);
+
+    const [modalSolicitudAbierto, setModalSolicitudAbierto] = useState(false);
+    const [publicacionParaReserva, setPublicacionParaReserva] = useState<
+        PublicacionListado | PublicacionDetalle | null
+    >(null);
 
     const [filtros, setFiltros] = useState<FiltrosPublicacion>({
         ubicacion: searchParams.get('ubicacion') || '',
@@ -160,9 +167,16 @@ function BusquedaPage() {
     };
 
     const reservar = (publicacion: PublicacionListado | PublicacionDetalle) => {
-        alert(
-            `La solicitud de reserva para "${publicacion.titulo}" se implementará en la HU09.`
-        );
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            alert('Debes iniciar sesión para enviar una solicitud de reserva.');
+            navigate('/Login');
+            return;
+        }
+
+        setPublicacionParaReserva(publicacion);
+        setModalSolicitudAbierto(true);
     };
 
     const obtenerImagen = (url: string | null) => {
@@ -238,6 +252,13 @@ function BusquedaPage() {
                                                 <strong>Tipo:</strong> {publicacion.tipo_inmueble}
                                             </p>
 
+                                            <p>
+                                                 <strong>Disponible desde:</strong>{' '}
+                                            {publicacion.disponible_desde
+                                                ? `${publicacion.disponible_desde.slice(8, 10)}/${publicacion.disponible_desde.slice(5, 7)}/${publicacion.disponible_desde.slice(0, 4)}`
+                                                : 'No especificada'}
+                                            </p>
+
                                             {publicacion.area_m2 !== null && (
                                                 <p>
                                                     <strong>Área:</strong> {publicacion.area_m2} m²
@@ -301,6 +322,33 @@ function BusquedaPage() {
                 cargando={cargandoDetalle}
                 onCerrar={cerrarDetalle}
                 onReservar={reservar}
+            />
+
+            <SolicitudReservaDialog
+                abierto={modalSolicitudAbierto}
+                publicacion={
+                    publicacionParaReserva
+                        ? {
+                            publicacion_id: publicacionParaReserva.publicacion_id,
+                            titulo: publicacionParaReserva.titulo,
+                            nombre_inmueble: publicacionParaReserva.nombre_inmueble,
+                            tipo_inmueble: publicacionParaReserva.tipo_inmueble,
+                            precio_publicado_mensual:
+                                publicacionParaReserva.precio_publicado_mensual,
+                            moneda: publicacionParaReserva.moneda,
+                            disponible_desde: publicacionParaReserva.disponible_desde
+                        }
+                        : null
+                }
+                onCerrar={() => {
+                    setModalSolicitudAbierto(false);
+                    setPublicacionParaReserva(null);
+                }}
+                onSolicitudCreada={() => {
+                    setModalSolicitudAbierto(false);
+                    setPublicacionParaReserva(null);
+                    navigate('/MisSolicitudesReserva');
+                }}
             />
                     </>
     );

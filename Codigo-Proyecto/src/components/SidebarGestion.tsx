@@ -100,11 +100,18 @@ function SidebarGestion() {
                     <NavLink to="/GestionDisponibilidad">Disponibilidad</NavLink>
                     <NavLink to="/GestionPublicacion">Publicar inmueble</NavLink>
 
+                    <NavLink to="/GestionSolicitudesReserva">
+                        Solicitudes de reserva
+                    </NavLink>
+
                     {esAdmin && (
-                        <NavLink to="/GestionAdmin">Mantenimiento Admin</NavLink>
+                        <NavLink to="/GestionAdmin">
+                            Mantenimiento Admin
+                        </NavLink>
                     )}
 
                     <NavLink to="/GestionPerfil">Perfil</NavLink>
+                    
                 </nav>
             </div>
 

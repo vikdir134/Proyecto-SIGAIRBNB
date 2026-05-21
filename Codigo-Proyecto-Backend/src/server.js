@@ -12,6 +12,7 @@ const perfilRoutes = require('./routes/perfil.routes');
 const adminRoutes = require('./routes/admin.routes');
 const disponibilidadRoutes = require('./routes/disponibilidad.routes');
 const publicacionRoutes = require('./routes/publicacion.routes');
+const reservaRoutes = require('./routes/reserva.routes');
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/perfil', perfilRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/disponibilidad', disponibilidadRoutes);
 app.use('/api/publicaciones', publicacionRoutes);
+app.use('/api/reservas', reservaRoutes);
 
 app.get('/', (req, res) => {
   res.json({

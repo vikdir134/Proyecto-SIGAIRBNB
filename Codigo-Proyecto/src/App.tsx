@@ -17,9 +17,10 @@ import GestionAdmin from './pages/GestionAdmin';
 import GestionDisponibilidad from './pages/GestionDisponibilidad';
 import RutaAdmin from './components/RutaAdmin';
 import BusquedaPage from './pages/BusquedaPage';
-
 import RestablecerPassword from './pages/RestablecerPassword';
 import GestionPublicacion from './pages/GestionPublicacion';
+import MisSolicitudesReserva from './pages/MisSolicitudesReserva';
+import GestionSolicitudesReserva from './pages/GestionSolicitudesReserva';
 
 function App() {
   return (
@@ -44,7 +45,8 @@ function App() {
         <Route path="/Busqueda" element={<BusquedaPage />} />
 
         <Route path="/GestionPublicacion" element={<GestionPublicacion />} />
-       
+        <Route path="/MisSolicitudesReserva" element={<MisSolicitudesReserva />} />
+        <Route path="/GestionSolicitudesReserva" element={<GestionSolicitudesReserva />}/>
       </Routes>
     </BrowserRouter>
   );

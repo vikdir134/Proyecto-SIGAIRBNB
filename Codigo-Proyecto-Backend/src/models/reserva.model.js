@@ -1,0 +1,792 @@
+const { getConnection, sql } = require('../config/db');
+
+const obtenerPublicacionReservablePorId = async (publicacion_id) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('publicacion_id', sql.Int, publicacion_id)
+    .query(`
+      SELECT
+        p.publicacion_id,
+        p.inmueble_id,
+        p.titulo,
+        p.precio_publicado_mensual,
+        p.moneda,
+        p.disponible_desde,
+        p.estado_publicacion,
+        p.acepta_reservas,
+
+        i.empresa_id,
+        i.codigo AS codigo_inmueble,
+        i.nombre AS nombre_inmueble,
+        i.tipo_inmueble,
+        i.estado_operativo,
+        i.es_publicable,
+        i.activo
+      FROM catalog.Publicacion p
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = p.inmueble_id
+      WHERE p.publicacion_id = @publicacion_id
+        AND p.estado_publicacion = 'PUBLICADO'
+        AND p.acepta_reservas = 1
+        AND i.activo = 1
+        AND i.deleted_at IS NULL
+        AND i.es_publicable = 1
+        AND i.estado_operativo = 'DISPONIBLE';
+    `);
+
+  return result.recordset[0];
+};
+
+const buscarConflictosReserva = async ({
+  empresa_id,
+  inmueble_id,
+  fecha_inicio,
+  fecha_fin
+}) => {
+  const pool = await getConnection();
+
+  const bloqueosResult = await pool.request()
+    .input('empresa_id', sql.Int, empresa_id)
+    .input('inmueble_id', sql.Int, inmueble_id)
+    .input('fecha_inicio', sql.Date, fecha_inicio)
+    .input('fecha_fin', sql.Date, fecha_fin)
+    .query(`
+      SELECT
+        b.bloqueo_disponibilidad_id,
+        b.inmueble_id,
+        b.fecha_inicio,
+        b.fecha_fin,
+        b.motivo,
+        b.origen
+      FROM catalog.BloqueoDisponibilidad b
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = b.inmueble_id
+      WHERE b.inmueble_id = @inmueble_id
+        AND i.empresa_id = @empresa_id
+        AND b.activo = 1
+        AND i.activo = 1
+        AND i.deleted_at IS NULL
+        AND (
+          @fecha_inicio <= b.fecha_fin
+          AND @fecha_fin >= b.fecha_inicio
+        );
+    `);
+
+  const reservasResult = await pool.request()
+    .input('empresa_id', sql.Int, empresa_id)
+    .input('inmueble_id', sql.Int, inmueble_id)
+    .input('fecha_inicio', sql.Date, fecha_inicio)
+    .input('fecha_fin', sql.Date, fecha_fin)
+    .query(`
+      SELECT
+        r.reserva_id,
+        r.inmueble_id,
+        r.inquilino_id,
+        r.estado_reserva,
+        r.fecha_inicio,
+        r.fecha_fin,
+        r.observacion_inquilino
+      FROM booking.Reserva r
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      WHERE r.inmueble_id = @inmueble_id
+        AND i.empresa_id = @empresa_id
+        AND i.activo = 1
+        AND i.deleted_at IS NULL
+        AND r.estado_reserva IN ('SOLICITADA', 'APROBADA', 'ACTIVA')
+        AND (
+          @fecha_inicio <= r.fecha_fin
+          AND @fecha_fin >= r.fecha_inicio
+        );
+    `);
+
+  return {
+    bloqueos: bloqueosResult.recordset,
+    reservas: reservasResult.recordset
+  };
+};
+
+const crearSolicitudReserva = async ({
+  inmueble_id,
+  inquilino_id,
+  fecha_inicio,
+  fecha_fin,
+  renta_pactada_mensual,
+  moneda,
+  observacion_inquilino
+}) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    const requestReserva = new sql.Request(transaction);
+
+    const reservaResult = await requestReserva
+      .input('inmueble_id', sql.Int, inmueble_id)
+      .input('inquilino_id', sql.Int, inquilino_id)
+      .input('fecha_inicio', sql.Date, fecha_inicio)
+      .input('fecha_fin', sql.Date, fecha_fin)
+      .input('renta_pactada_mensual', sql.Decimal(12, 2), renta_pactada_mensual)
+      .input('moneda', sql.Char(3), moneda || 'PEN')
+      .input('observacion_inquilino', sql.NVarChar(500), observacion_inquilino || null)
+      .query(`
+        INSERT INTO booking.Reserva (
+          inmueble_id,
+          inquilino_id,
+          estado_reserva,
+          fecha_inicio,
+          fecha_fin,
+          renta_pactada_mensual,
+          moneda,
+          observacion_inquilino
+        )
+        OUTPUT
+          INSERTED.reserva_id,
+          INSERTED.inmueble_id,
+          INSERTED.inquilino_id,
+          INSERTED.estado_reserva,
+          INSERTED.fecha_solicitud,
+          INSERTED.fecha_inicio,
+          INSERTED.fecha_fin,
+          INSERTED.renta_pactada_mensual,
+          INSERTED.moneda,
+          INSERTED.observacion_inquilino,
+          INSERTED.created_at
+        VALUES (
+          @inmueble_id,
+          @inquilino_id,
+          'SOLICITADA',
+          @fecha_inicio,
+          @fecha_fin,
+          @renta_pactada_mensual,
+          @moneda,
+          @observacion_inquilino
+        );
+      `);
+
+    const reservaCreada = reservaResult.recordset[0];
+
+    const requestEvento = new sql.Request(transaction);
+
+    await requestEvento
+      .input('reserva_id', sql.Int, reservaCreada.reserva_id)
+      .input('usuario_id', sql.Int, inquilino_id)
+      .input('tipo_evento', sql.NVarChar(30), 'SOLICITUD')
+      .input('descripcion', sql.NVarChar(500), 'El inquilino envió una solicitud de reserva.')
+      .query(`
+        INSERT INTO booking.ReservaEvento (
+          reserva_id,
+          usuario_id,
+          tipo_evento,
+          descripcion
+        )
+        VALUES (
+          @reserva_id,
+          @usuario_id,
+          @tipo_evento,
+          @descripcion
+        );
+      `);
+
+    await transaction.commit();
+
+    return reservaCreada;
+
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+const listarSolicitudesPorInquilino = async (inquilino_id) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('inquilino_id', sql.Int, inquilino_id)
+    .query(`
+      SELECT
+        r.reserva_id,
+        r.inmueble_id,
+        r.inquilino_id,
+        r.estado_reserva,
+        r.fecha_solicitud,
+        r.fecha_inicio,
+        r.fecha_fin,
+        r.renta_pactada_mensual,
+        r.monto_total_estimado,
+        r.deposito_garantia,
+        r.moneda,
+        r.observacion_inquilino,
+        r.observacion_gestor,
+        r.motivo_rechazo,
+        r.fecha_decision,
+        r.created_at,
+
+        i.codigo AS codigo_inmueble,
+        i.nombre AS nombre_inmueble,
+        i.tipo_inmueble,
+        i.subtipo_unidad,
+        i.direccion_linea1,
+        i.numero,
+        i.distrito,
+        i.ciudad,
+        i.provincia,
+        i.departamento,
+
+        p.publicacion_id,
+        p.titulo AS titulo_publicacion,
+        p.descripcion_corta,
+        p.precio_publicado_mensual,
+
+        foto.url_foto AS foto_principal
+      FROM booking.Reserva r
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      LEFT JOIN catalog.Publicacion p
+        ON p.inmueble_id = i.inmueble_id
+      OUTER APPLY (
+        SELECT TOP 1
+          f.url_foto
+        FROM catalog.InmuebleFoto f
+        WHERE f.publicacion_id = p.publicacion_id
+        ORDER BY
+          CASE WHEN f.es_principal = 1 THEN 0 ELSE 1 END,
+          f.orden_visual ASC
+      ) foto
+      WHERE r.inquilino_id = @inquilino_id
+      ORDER BY r.fecha_solicitud DESC;
+    `);
+
+  return result.recordset;
+};
+
+const listarSolicitudesGestionEmpresa = async (usuario_publicador_id, filtros = {}) => {
+  const pool = await getConnection();
+
+  const { estado_reserva } = filtros;
+
+  const request = pool.request()
+    .input('usuario_publicador_id', sql.Int, usuario_publicador_id);
+
+  const condiciones = [
+    'p.publicado_por_usuario_id = @usuario_publicador_id',
+    'i.activo = 1',
+    'i.deleted_at IS NULL'
+  ];
+
+  if (estado_reserva) {
+    request.input('estado_reserva', sql.NVarChar(20), estado_reserva);
+    condiciones.push('r.estado_reserva = @estado_reserva');
+  }
+
+  const result = await request.query(`
+    SELECT
+      r.reserva_id,
+      r.inmueble_id,
+      r.inquilino_id,
+      r.estado_reserva,
+      r.fecha_solicitud,
+      r.fecha_inicio,
+      r.fecha_fin,
+      r.renta_pactada_mensual,
+      r.monto_total_estimado,
+      r.deposito_garantia,
+      r.moneda,
+      r.observacion_inquilino,
+      r.observacion_gestor,
+      r.motivo_rechazo,
+      r.fecha_decision,
+      r.gestionado_por_usuario_id,
+      r.created_at,
+
+      i.codigo AS codigo_inmueble,
+      i.nombre AS nombre_inmueble,
+      i.tipo_inmueble,
+      i.subtipo_unidad,
+      i.direccion_linea1,
+      i.numero,
+      i.distrito,
+      i.ciudad,
+      i.provincia,
+      i.departamento,
+
+      p.publicacion_id,
+      p.titulo AS titulo_publicacion,
+      p.precio_publicado_mensual,
+      p.publicado_por_usuario_id,
+
+      u.correo AS correo_inquilino,
+      pu.nombres AS nombres_inquilino,
+      pu.apellidos AS apellidos_inquilino,
+      pu.telefono AS telefono_inquilino,
+      pu.tipo_documento,
+      pu.numero_documento,
+      pu.ingreso_mensual_referencial,
+      pu.tiene_aval_bancario,
+      pu.tiene_contrato_trabajo,
+      pu.tiene_garante,
+
+      foto.url_foto AS foto_principal
+    FROM booking.Reserva r
+    INNER JOIN catalog.Inmueble i
+      ON i.inmueble_id = r.inmueble_id
+    INNER JOIN catalog.Publicacion p
+      ON p.inmueble_id = i.inmueble_id
+    INNER JOIN auth.Usuario u
+      ON u.usuario_id = r.inquilino_id
+    LEFT JOIN core.PerfilUsuario pu
+      ON pu.usuario_id = r.inquilino_id
+    OUTER APPLY (
+      SELECT TOP 1
+        f.url_foto
+      FROM catalog.InmuebleFoto f
+      WHERE f.publicacion_id = p.publicacion_id
+      ORDER BY
+        CASE WHEN f.es_principal = 1 THEN 0 ELSE 1 END,
+        f.orden_visual ASC
+    ) foto
+    WHERE ${condiciones.join(' AND ')}
+    ORDER BY
+      CASE 
+        WHEN r.estado_reserva = 'SOLICITADA' THEN 1
+        WHEN r.estado_reserva = 'APROBADA' THEN 2
+        WHEN r.estado_reserva = 'ACTIVA' THEN 3
+        WHEN r.estado_reserva = 'RECHAZADA' THEN 4
+        WHEN r.estado_reserva = 'CANCELADA' THEN 5
+        ELSE 6
+      END,
+      r.fecha_solicitud DESC;
+  `);
+
+  return result.recordset;
+};
+
+const obtenerSolicitudGestionPorId = async (usuario_publicador_id, reserva_id) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('usuario_publicador_id', sql.Int, usuario_publicador_id)
+    .input('reserva_id', sql.Int, reserva_id)
+    .query(`
+      SELECT
+        r.reserva_id,
+        r.inmueble_id,
+        r.inquilino_id,
+        r.estado_reserva,
+        r.fecha_solicitud,
+        r.fecha_inicio,
+        r.fecha_fin,
+        r.renta_pactada_mensual,
+        r.moneda,
+        r.observacion_inquilino,
+        r.observacion_gestor,
+        r.motivo_rechazo,
+        r.fecha_decision,
+        r.gestionado_por_usuario_id,
+
+        i.empresa_id,
+        i.codigo AS codigo_inmueble,
+        i.nombre AS nombre_inmueble,
+        i.tipo_inmueble,
+
+        p.publicacion_id,
+        p.publicado_por_usuario_id
+      FROM booking.Reserva r
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      INNER JOIN catalog.Publicacion p
+        ON p.inmueble_id = i.inmueble_id
+      WHERE r.reserva_id = @reserva_id
+        AND p.publicado_por_usuario_id = @usuario_publicador_id
+        AND i.activo = 1
+        AND i.deleted_at IS NULL;
+    `);
+
+  return result.recordset[0];
+};
+
+const buscarConflictosAprobacionReserva = async ({
+  empresa_id,
+  inmueble_id,
+  reserva_id,
+  fecha_inicio,
+  fecha_fin
+}) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('empresa_id', sql.Int, empresa_id)
+    .input('inmueble_id', sql.Int, inmueble_id)
+    .input('reserva_id', sql.Int, reserva_id)
+    .input('fecha_inicio', sql.Date, fecha_inicio)
+    .input('fecha_fin', sql.Date, fecha_fin)
+    .query(`
+      SELECT
+        r.reserva_id,
+        r.inmueble_id,
+        r.estado_reserva,
+        r.fecha_inicio,
+        r.fecha_fin
+      FROM booking.Reserva r
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      WHERE r.inmueble_id = @inmueble_id
+        AND r.reserva_id <> @reserva_id
+        AND i.empresa_id = @empresa_id
+        AND i.activo = 1
+        AND i.deleted_at IS NULL
+        AND r.estado_reserva IN ('APROBADA', 'ACTIVA')
+        AND (
+          @fecha_inicio <= r.fecha_fin
+          AND @fecha_fin >= r.fecha_inicio
+        );
+    `);
+
+  return result.recordset;
+};
+
+const aprobarSolicitudReservaPorId = async ({
+  usuario_publicador_id,
+  empresa_id,
+  reserva_id,
+  gestor_id,
+  observacion_gestor
+}) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    const requestActualizar = new sql.Request(transaction);
+
+    const reservaResult = await requestActualizar
+      .input('usuario_publicador_id', sql.Int, usuario_publicador_id)
+      .input('reserva_id', sql.Int, reserva_id)
+      .input('gestor_id', sql.Int, gestor_id)
+      .input('observacion_gestor', sql.NVarChar(500), observacion_gestor || null)
+      .query(`
+        UPDATE r
+        SET
+          r.estado_reserva = 'APROBADA',
+          r.observacion_gestor = @observacion_gestor,
+          r.fecha_decision = SYSDATETIME(),
+          r.gestionado_por_usuario_id = @gestor_id,
+          r.updated_at = SYSDATETIME()
+        OUTPUT
+          INSERTED.reserva_id,
+          INSERTED.inmueble_id,
+          INSERTED.inquilino_id,
+          INSERTED.estado_reserva,
+          INSERTED.fecha_solicitud,
+          INSERTED.fecha_inicio,
+          INSERTED.fecha_fin,
+          INSERTED.renta_pactada_mensual,
+          INSERTED.moneda,
+          INSERTED.observacion_inquilino,
+          INSERTED.observacion_gestor,
+          INSERTED.fecha_decision,
+          INSERTED.gestionado_por_usuario_id,
+          INSERTED.updated_at
+        FROM booking.Reserva r
+        INNER JOIN catalog.Inmueble i
+          ON i.inmueble_id = r.inmueble_id
+        INNER JOIN catalog.Publicacion p
+          ON p.inmueble_id = i.inmueble_id
+        WHERE r.reserva_id = @reserva_id
+          AND p.publicado_por_usuario_id = @usuario_publicador_id
+          AND r.estado_reserva = 'SOLICITADA'
+          AND i.activo = 1
+          AND i.deleted_at IS NULL;
+              `);
+
+    const reservaAprobada = reservaResult.recordset[0];
+
+    if (!reservaAprobada) {
+      await transaction.rollback();
+      return null;
+    }
+
+    const requestEvento = new sql.Request(transaction);
+
+    await requestEvento
+      .input('reserva_id', sql.Int, reservaAprobada.reserva_id)
+      .input('usuario_id', sql.Int, gestor_id)
+      .input('tipo_evento', sql.NVarChar(30), 'APROBACION')
+      .input('descripcion', sql.NVarChar(500), 'El gestor aprobó la solicitud de reserva.')
+      .query(`
+        INSERT INTO booking.ReservaEvento (
+          reserva_id,
+          usuario_id,
+          tipo_evento,
+          descripcion
+        )
+        VALUES (
+          @reserva_id,
+          @usuario_id,
+          @tipo_evento,
+          @descripcion
+        );
+      `);
+
+    await transaction.commit();
+
+    return reservaAprobada;
+
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+const rechazarSolicitudReservaPorId = async ({
+  usuario_publicador_id,
+  empresa_id,
+  reserva_id,
+  gestor_id,
+  motivo_rechazo,
+  observacion_gestor
+}) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    const requestActualizar = new sql.Request(transaction);
+
+    const reservaResult = await requestActualizar
+      .input('usuario_publicador_id', sql.Int, usuario_publicador_id)
+      .input('reserva_id', sql.Int, reserva_id)
+      .input('gestor_id', sql.Int, gestor_id)
+      .input('motivo_rechazo', sql.NVarChar(300), motivo_rechazo)
+      .input('observacion_gestor', sql.NVarChar(500), observacion_gestor || null)
+      .query(`
+        UPDATE r
+        SET
+          r.estado_reserva = 'RECHAZADA',
+          r.motivo_rechazo = @motivo_rechazo,
+          r.observacion_gestor = @observacion_gestor,
+          r.fecha_decision = SYSDATETIME(),
+          r.gestionado_por_usuario_id = @gestor_id,
+          r.updated_at = SYSDATETIME()
+        OUTPUT
+          INSERTED.reserva_id,
+          INSERTED.inmueble_id,
+          INSERTED.inquilino_id,
+          INSERTED.estado_reserva,
+          INSERTED.fecha_solicitud,
+          INSERTED.fecha_inicio,
+          INSERTED.fecha_fin,
+          INSERTED.renta_pactada_mensual,
+          INSERTED.moneda,
+          INSERTED.observacion_inquilino,
+          INSERTED.observacion_gestor,
+          INSERTED.motivo_rechazo,
+          INSERTED.fecha_decision,
+          INSERTED.gestionado_por_usuario_id,
+          INSERTED.updated_at
+        FROM booking.Reserva r
+          INNER JOIN catalog.Inmueble i
+            ON i.inmueble_id = r.inmueble_id
+          INNER JOIN catalog.Publicacion p
+            ON p.inmueble_id = i.inmueble_id
+          WHERE r.reserva_id = @reserva_id
+            AND p.publicado_por_usuario_id = @usuario_publicador_id
+            AND r.estado_reserva = 'SOLICITADA'
+            AND i.activo = 1
+            AND i.deleted_at IS NULL;
+      `);
+
+    const reservaRechazada = reservaResult.recordset[0];
+
+    if (!reservaRechazada) {
+      await transaction.rollback();
+      return null;
+    }
+
+    const requestEvento = new sql.Request(transaction);
+
+    await requestEvento
+      .input('reserva_id', sql.Int, reservaRechazada.reserva_id)
+      .input('usuario_id', sql.Int, gestor_id)
+      .input('tipo_evento', sql.NVarChar(30), 'RECHAZO')
+      .input('descripcion', sql.NVarChar(500), 'El gestor rechazó la solicitud de reserva.')
+      .query(`
+        INSERT INTO booking.ReservaEvento (
+          reserva_id,
+          usuario_id,
+          tipo_evento,
+          descripcion
+        )
+        VALUES (
+          @reserva_id,
+          @usuario_id,
+          @tipo_evento,
+          @descripcion
+        );
+      `);
+
+    await transaction.commit();
+
+    return reservaRechazada;
+
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
+
+const listarEventosReservaGestion = async (usuario_publicador_id, reserva_id) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('usuario_publicador_id', sql.Int, usuario_publicador_id)
+    .input('reserva_id', sql.Int, reserva_id)
+    .query(`
+      SELECT
+        e.reserva_evento_id,
+        e.reserva_id,
+        e.usuario_id,
+        e.tipo_evento,
+        e.descripcion,
+        e.fecha_evento,
+
+        u.correo AS correo_usuario,
+        pu.nombres AS nombres_usuario,
+        pu.apellidos AS apellidos_usuario
+      FROM booking.ReservaEvento e
+      INNER JOIN booking.Reserva r
+        ON r.reserva_id = e.reserva_id
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      INNER JOIN catalog.Publicacion p
+        ON p.inmueble_id = i.inmueble_id
+      LEFT JOIN auth.Usuario u
+        ON u.usuario_id = e.usuario_id
+      LEFT JOIN core.PerfilUsuario pu
+        ON pu.usuario_id = e.usuario_id
+      WHERE e.reserva_id = @reserva_id
+        AND p.publicado_por_usuario_id = @usuario_publicador_id
+        AND i.activo = 1
+        AND i.deleted_at IS NULL
+      ORDER BY e.fecha_evento ASC;
+    `);
+
+  return result.recordset;
+};
+
+const obtenerSolicitudInquilinoPorId = async (inquilino_id, reserva_id) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('inquilino_id', sql.Int, inquilino_id)
+    .input('reserva_id', sql.Int, reserva_id)
+    .query(`
+      SELECT
+        r.reserva_id,
+        r.inmueble_id,
+        r.inquilino_id,
+        r.estado_reserva,
+        r.fecha_solicitud,
+        r.fecha_inicio,
+        r.fecha_fin,
+        r.renta_pactada_mensual,
+        r.monto_total_estimado,
+        r.deposito_garantia,
+        r.moneda,
+        r.observacion_inquilino,
+        r.observacion_gestor,
+        r.motivo_rechazo,
+        r.fecha_decision,
+        r.created_at,
+        r.updated_at,
+
+        i.codigo AS codigo_inmueble,
+        i.nombre AS nombre_inmueble,
+        i.tipo_inmueble,
+        i.subtipo_unidad,
+        i.direccion_linea1,
+        i.numero,
+        i.distrito,
+        i.ciudad,
+        i.provincia,
+        i.departamento,
+
+        p.publicacion_id,
+        p.titulo AS titulo_publicacion,
+        p.descripcion_corta,
+        p.precio_publicado_mensual,
+
+        foto.url_foto AS foto_principal
+      FROM booking.Reserva r
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      LEFT JOIN catalog.Publicacion p
+        ON p.inmueble_id = i.inmueble_id
+      OUTER APPLY (
+        SELECT TOP 1
+          f.url_foto
+        FROM catalog.InmuebleFoto f
+        WHERE f.publicacion_id = p.publicacion_id
+        ORDER BY
+          CASE WHEN f.es_principal = 1 THEN 0 ELSE 1 END,
+          f.orden_visual ASC
+      ) foto
+      WHERE r.reserva_id = @reserva_id
+        AND r.inquilino_id = @inquilino_id;
+    `);
+
+  return result.recordset[0];
+};
+
+const listarEventosReservaInquilino = async (inquilino_id, reserva_id) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('inquilino_id', sql.Int, inquilino_id)
+    .input('reserva_id', sql.Int, reserva_id)
+    .query(`
+      SELECT
+        e.reserva_evento_id,
+        e.reserva_id,
+        e.usuario_id,
+        e.tipo_evento,
+        e.descripcion,
+        e.fecha_evento,
+
+        u.correo AS correo_usuario,
+        pu.nombres AS nombres_usuario,
+        pu.apellidos AS apellidos_usuario
+      FROM booking.ReservaEvento e
+      INNER JOIN booking.Reserva r
+        ON r.reserva_id = e.reserva_id
+      LEFT JOIN auth.Usuario u
+        ON u.usuario_id = e.usuario_id
+      LEFT JOIN core.PerfilUsuario pu
+        ON pu.usuario_id = e.usuario_id
+      WHERE e.reserva_id = @reserva_id
+        AND r.inquilino_id = @inquilino_id
+      ORDER BY e.fecha_evento ASC;
+    `);
+
+  return result.recordset;
+};
+
+module.exports = {
+  obtenerPublicacionReservablePorId,
+  buscarConflictosReserva,
+  crearSolicitudReserva,
+  listarSolicitudesPorInquilino,
+  listarSolicitudesGestionEmpresa,  /*listarSolicitudesGestionPublicador*/
+  obtenerSolicitudGestionPorId,
+  buscarConflictosAprobacionReserva,
+  aprobarSolicitudReservaPorId,
+  rechazarSolicitudReservaPorId,
+  listarEventosReservaGestion,
+  obtenerSolicitudInquilinoPorId,
+  listarEventosReservaInquilino
+};

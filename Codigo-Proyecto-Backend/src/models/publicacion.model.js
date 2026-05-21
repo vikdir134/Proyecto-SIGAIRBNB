@@ -354,6 +354,7 @@ const buscarPublicacionPorInmueble = async (inmueble_id) => {
 
 const crearPublicacionBorrador = async ({
   inmueble_id,
+  publicado_por_usuario_id,
   titulo,
   descripcion_corta,
   descripcion_larga,
@@ -368,6 +369,7 @@ const crearPublicacionBorrador = async ({
 
   const result = await pool.request()
     .input('inmueble_id', sql.Int, inmueble_id)
+    .input('publicado_por_usuario_id', sql.Int, publicado_por_usuario_id)
     .input('titulo', sql.NVarChar(200), titulo)
     .input('descripcion_corta', sql.NVarChar(500), descripcion_corta || null)
     .input('descripcion_larga', sql.NVarChar(sql.MAX), descripcion_larga || null)
@@ -380,6 +382,7 @@ const crearPublicacionBorrador = async ({
     .query(`
       INSERT INTO catalog.Publicacion (
         inmueble_id,
+        publicado_por_usuario_id,
         titulo,
         descripcion_corta,
         descripcion_larga,
@@ -394,6 +397,7 @@ const crearPublicacionBorrador = async ({
       OUTPUT
         INSERTED.publicacion_id,
         INSERTED.inmueble_id,
+        INSERTED.publicado_por_usuario_id,
         INSERTED.titulo,
         INSERTED.descripcion_corta,
         INSERTED.descripcion_larga,
@@ -407,6 +411,7 @@ const crearPublicacionBorrador = async ({
         INSERTED.created_at
       VALUES (
         @inmueble_id,
+        @publicado_por_usuario_id,
         @titulo,
         @descripcion_corta,
         @descripcion_larga,
