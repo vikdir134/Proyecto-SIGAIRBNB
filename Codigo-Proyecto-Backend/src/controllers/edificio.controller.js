@@ -213,6 +213,8 @@ const validarNumero = (valor, nombreCampo, opciones = {}) => {
 
 const crearPisoLocal = async (req, res) => {
   try {
+    const empresaId = req.usuario.empresa_id;
+    const usuarioId = req.usuario.usuario_id;
     const {
       edificio_id,
       codigo,
@@ -284,8 +286,7 @@ const crearPisoLocal = async (req, res) => {
     }
 
     //empresa_id se obteniene desde el token JWT.
-    const empresaId = req.usuario.empresa_id;
-
+    
     const edificioPadre = await buscarEdificioPadrePorId(empresaId, edificioIdNumero);
 
     if (!edificioPadre) {

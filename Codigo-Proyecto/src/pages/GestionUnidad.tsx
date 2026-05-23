@@ -239,7 +239,10 @@ function GestionUnidad() {
         setError('');
         setMostrarConfirmacion(false);
 
-        if (!formData.edificio_id) {
+        const edificioIdSeleccionado = formData.edificio_id;
+        const tipoSeleccionado = formData.tipo_inmueble;
+
+        if (!edificioIdSeleccionado) {
             setError('Debe seleccionar un edificio.');
             return;
         }
@@ -300,12 +303,35 @@ function GestionUnidad() {
         try {
             setGuardando(true);
 
+           const edificioIdSeleccionado = formData.edificio_id;
+
+            console.log('Enviando unidad:', formData);
+
             const data = await registrarUnidad(formData);
 
+            console.log('Respuesta registrarUnidad:', data);
             setMensaje(data.mensaje || 'Piso/local registrado correctamente.');
             setUnidadDetalle(null);
-            await cargarUnidadesPorEdificio(formData.edificio_id);
+            console.log('Recargando unidades del edificio:', edificioIdSeleccionado);
+            await cargarUnidadesPorEdificio(edificioIdSeleccionado);
             limpiarFormulario(true);
+            
+            setFormData({
+                edificio_id: edificioIdSeleccionado,
+                codigo: '',
+                tipo_inmueble: tipoSeleccionado,
+                nombre: '',
+                subtipo_unidad: '',
+                descripcion: '',
+                planta: '',
+                letra: '',
+                area_m2: '',
+                num_habitaciones: '',
+                num_banos: '',
+                capacidad_personas: '',
+                renta_base_mensual: '',
+                moneda: 'PEN'
+            });
         } catch (error) {
             if (error instanceof Error) {
                 setError(error.message);
