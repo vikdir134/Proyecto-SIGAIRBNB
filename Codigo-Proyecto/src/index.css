@@ -1237,3 +1237,498 @@ a {
     height: 100%;
     object-fit: cover;
 }
+
+.gestion-vetting-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-left: 0.5rem;
+}
+
+.gestion-vetting-status.vetting-pendiente,
+.gestion-vetting-box.vetting-pendiente {
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+}
+
+.gestion-vetting-status.vetting-aprobado,
+.gestion-vetting-box.vetting-aprobado {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.gestion-vetting-status.vetting-observado,
+.gestion-vetting-box.vetting-observado {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.gestion-vetting-status.vetting-rechazado,
+.gestion-vetting-box.vetting-rechazado {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.gestion-vetting-box {
+    margin-top: 1rem;
+    border-radius: 14px;
+    padding: 1rem;
+}
+
+.gestion-vetting-box h3 {
+    margin: 0 0 0.6rem 0;
+}
+
+.gestion-vetting-box p {
+    margin: 0.3rem 0;
+}
+
+.vetting-dialog {
+    max-width: 980px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.vetting-resumen-card {
+    border-left: 5px solid #2563eb;
+}
+
+.vetting-alertas-list {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 1rem;
+}
+
+.vetting-alerta-item {
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-size: 0.9rem;
+}
+
+.vetting-alerta-item.alerta-alto {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.vetting-alerta-item.alerta-medio {
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+}
+
+.vetting-alerta-item.alerta-bajo {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.vetting-historial-list {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 1rem;
+}
+
+.vetting-historial-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.vetting-form-card {
+    border-left: 5px solid #16a34a;
+}
+
+.vetting-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 1rem;
+}
+
+.vetting-form-field label {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.vetting-form-field input,
+.vetting-form-field select,
+.vetting-form-field textarea {
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    outline: none;
+    background: #fff;
+}
+
+.vetting-form-field textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.vetting-form-field input:focus,
+.vetting-form-field select:focus,
+.vetting-form-field textarea:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.vetting-form-field small {
+    color: #64748b;
+    font-size: 0.8rem;
+}
+
+.gestion-vetting-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+}
+
+.gestion-vetting-summary-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 1rem;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+    text-align: left;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.gestion-vetting-summary-card span {
+    display: block;
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin-bottom: 0.45rem;
+}
+
+.gestion-vetting-summary-card strong {
+    font-size: 1.7rem;
+    color: #0f172a;
+}
+
+.gestion-vetting-summary-card.resumen-pendiente {
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.gestion-vetting-summary-card.resumen-aprobado,
+.gestion-vetting-summary-card.resumen-puede-aprobar {
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+}
+
+.gestion-vetting-summary-card.resumen-observado {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+}
+
+.gestion-vetting-summary-card.resumen-rechazado {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.vetting-evaluaciones-list {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.vetting-evaluacion-item {
+    padding: 0.85rem;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.vetting-evaluacion-item strong {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: #0f172a;
+}
+
+.vetting-evaluacion-item p {
+    margin: 0 0 0.35rem 0;
+    color: #334155;
+}
+
+.vetting-evaluacion-item small {
+    color: #64748b;
+}
+
+.vetting-evaluacion-item.resultado-aprobado {
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+}
+
+.vetting-evaluacion-item.resultado-observado {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+}
+
+.vetting-evaluacion-item.resultado-rechazado {
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.vetting-evaluacion-item.resultado-pendiente {
+    border-color: #fed7aa;
+    background: #fff7ed;
+}
+
+.gestion-btn-warning {
+    border: none;
+    background: #f97316;
+    color: #ffffff;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.gestion-btn-warning:hover {
+    background: #ea580c;
+}
+
+.gestion-btn-disabled {
+    border: 1px solid #cbd5e1;
+    background: #e2e8f0;
+    color: #64748b;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: not-allowed;
+}
+
+.gestion-vetting-hint {
+    margin-top: 0.75rem !important;
+    padding: 0.75rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.65);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.confirm-vetting-box {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem;
+    border-radius: 14px;
+    margin: 1rem 0;
+    border: 1px solid #e2e8f0;
+}
+
+.confirm-vetting-box strong {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.confirm-vetting-box p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.confirm-vetting-box.vetting-pendiente {
+    background: #fff7ed;
+    color: #9a3412;
+    border-color: #fed7aa;
+}
+
+.confirm-vetting-box.vetting-aprobado {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+
+.confirm-vetting-box.vetting-observado {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.confirm-vetting-box.vetting-rechazado {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+.confirm-vetting-score {
+    min-width: 80px;
+    text-align: center;
+    padding: 0.55rem;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.confirm-vetting-score span {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+.confirm-vetting-score strong {
+    font-size: 1rem;
+    margin: 0;
+}
+
+.detalle-solicitud-evento.evento-nota {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+}
+
+.detalle-solicitud-evento.evento-aprobacion {
+    background: #ecfdf5;
+    border-radius: 12px;
+    padding: 0.75rem;
+    border: 1px solid #a7f3d0;
+}
+
+.detalle-solicitud-evento.evento-rechazo {
+    background: #fef2f2;
+    border-radius: 12px;
+    padding: 0.75rem;
+    border: 1px solid #fecaca;
+}
+
+.detalle-solicitud-evento.evento-solicitud {
+    background: #eff6ff;
+    border-radius: 12px;
+    padding: 0.75rem;
+    border: 1px solid #bfdbfe;
+}
+
+.detalle-solicitud-evento small {
+    display: block;
+    margin-top: 0.25rem;
+    color: #64748b;
+}
+
+.gestion-vetting-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.1);
+}
+
+.gestion-vetting-summary-card:active {
+    transform: translateY(0);
+}
+
+.gestion-empty-card button {
+    margin-top: 1rem;
+}
+
+.vetting-form-sugerencia {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.9rem;
+    margin-bottom: 1rem;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.vetting-form-sugerencia strong {
+    display: block;
+    color: #0f172a;
+    margin-bottom: 0.25rem;
+}
+
+.vetting-form-sugerencia p {
+    margin: 0;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 700px) {
+    .vetting-form-sugerencia {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+.vetting-preview-evaluacion {
+    padding: 0.9rem;
+    border-radius: 14px;
+    margin-bottom: 1rem;
+    border: 1px solid #e2e8f0;
+}
+
+.vetting-preview-evaluacion strong {
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.vetting-preview-evaluacion p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.vetting-preview-evaluacion.resultado-aprobado {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+
+.vetting-preview-evaluacion.resultado-observado {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+}
+
+.vetting-preview-evaluacion.resultado-rechazado {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+.vetting-preview-evaluacion.resultado-pendiente {
+    background: #fff7ed;
+    color: #9a3412;
+    border-color: #fed7aa;
+}
+
+.vetting-preview-warning {
+    margin-top: 0.7rem;
+    padding: 0.65rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.75);
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.vetting-ready-card {
+    border-left: 5px solid #16a34a;
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+}
+
+.vetting-ready-card h3 {
+    color: #047857;
+}
+
+.vetting-ready-card p {
+    color: #065f46;
+}

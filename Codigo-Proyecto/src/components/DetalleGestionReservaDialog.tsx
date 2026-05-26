@@ -38,7 +38,14 @@ function DetalleGestionReservaDialog({
         });
     };
 
-    const textoEvento = (tipo: string) => {
+    const textoEvento = (tipo: string, descripcion?: string | null) => {
+        if (
+            tipo === 'NOTA' &&
+            descripcion?.toLowerCase().includes('evaluación de vetting')
+        ) {
+            return 'Evaluación de vetting';
+        }
+
         switch (tipo) {
             case 'SOLICITUD':
                 return 'Solicitud enviada';
@@ -46,6 +53,16 @@ function DetalleGestionReservaDialog({
                 return 'Solicitud aprobada';
             case 'RECHAZO':
                 return 'Solicitud rechazada';
+            case 'CANCELACION':
+                return 'Solicitud cancelada';
+            case 'CHECKIN':
+                return 'Check-in';
+            case 'CHECKOUT':
+                return 'Check-out';
+            case 'EXTENSION':
+                return 'Extensión de reserva';
+            case 'NOTA':
+                return 'Nota de gestión';
             default:
                 return tipo;
         }
@@ -160,13 +177,13 @@ function DetalleGestionReservaDialog({
                                 {eventos.map((evento) => (
                                     <div
                                         key={evento.reserva_evento_id}
-                                        className="detalle-solicitud-evento"
+                                        className={`detalle-solicitud-evento evento-${evento.tipo_evento.toLowerCase()}`}
                                     >
                                         <div className="detalle-solicitud-dot" />
 
                                         <div>
                                             <strong>
-                                                {textoEvento(evento.tipo_evento)}
+                                                {textoEvento(evento.tipo_evento, evento.descripcion)}
                                             </strong>
 
                                             <p>
@@ -177,6 +194,15 @@ function DetalleGestionReservaDialog({
                                             <small>
                                                 {formatearFechaHora(evento.fecha_evento)}
                                             </small>
+
+                                            {(evento.nombres_usuario || evento.correo_usuario) && (
+                                                <small>
+                                                    Registrado por:{' '}
+                                                    {evento.nombres_usuario || 'Usuario'}{' '}
+                                                    {evento.apellidos_usuario || ''}
+                                                    {evento.correo_usuario ? ` (${evento.correo_usuario})` : ''}
+                                                </small>
+                                            )}
                                         </div>
                                     </div>
                                 ))}

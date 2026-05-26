@@ -8,7 +8,11 @@ const {
   aprobarSolicitudReserva,
   rechazarSolicitudReserva,
   obtenerEventosReservaGestion,
-  obtenerDetalleMiSolicitudReserva
+  obtenerDetalleMiSolicitudReserva,
+  obtenerVettingInquilinoGestion,
+  registrarEvaluacionInquilinoGestion,
+  obtenerEvaluacionesInquilinoGestion,
+  obtenerResumenVettingGestion
 } = require('../controllers/reserva.controller');
 
 const {
@@ -22,6 +26,10 @@ const {
 router.get('/mis-solicitudes',verificarToken,obtenerMisSolicitudesReserva);
 router.post('/solicitudes',verificarToken,solicitarReserva);
 router.get('/gestion/solicitudes',verificarToken,obtenerSolicitudesGestion);
+router.get('/gestion/vetting/resumen',verificarToken,obtenerResumenVettingGestion);
+router.get('/gestion/solicitudes/:reserva_id/vetting', verificarToken, obtenerVettingInquilinoGestion); //HU11
+router.get('/gestion/solicitudes/:reserva_id/evaluaciones', verificarToken, obtenerEvaluacionesInquilinoGestion); //HU11
+router.post('/gestion/solicitudes/:reserva_id/evaluacion', verificarToken, registrarEvaluacionInquilinoGestion); //HU11
 router.get('/gestion/solicitudes/:reserva_id/eventos',verificarToken,obtenerEventosReservaGestion);
 router.patch('/gestion/solicitudes/:reserva_id/aprobar',verificarToken,aprobarSolicitudReserva);
 router.patch('/gestion/solicitudes/:reserva_id/rechazar',verificarToken,rechazarSolicitudReserva);

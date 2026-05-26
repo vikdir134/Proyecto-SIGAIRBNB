@@ -41,8 +41,59 @@ function ConfirmDecisionReservaDialog({
 
     const esAprobacion = tipo === 'APROBAR';
 
+    const estadoVetting = solicitud.estado_vetting;
+
+    const obtenerTextoVetting = () => {
+        if (!estadoVetting) {
+            return 'Sin información de vetting';
+        }
+
+        if (estadoVetting.requiere_evaluacion) {
+            return 'Pendiente de evaluación';
+        }
+
+        if (estadoVetting.resultado === 'APROBADO') {
+            return 'Vetting aprobado';
+        }
+
+        if (estadoVetting.resultado === 'OBSERVADO') {
+            return 'Vetting observado';
+        }
+
+        if (estadoVetting.resultado === 'RECHAZADO') {
+            return 'Vetting rechazado';
+        }
+
+        return estadoVetting.mensaje || 'Vetting registrado';
+    };
+
+    const obtenerClaseVetting = () => {
+        if (!estadoVetting || estadoVetting.requiere_evaluacion) {
+            return 'vetting-pendiente';
+        }
+
+        if (estadoVetting.resultado === 'APROBADO') {
+            return 'vetting-aprobado';
+        }
+
+        if (estadoVetting.resultado === 'OBSERVADO') {
+            return 'vetting-observado';
+        }
+
+        if (estadoVetting.resultado === 'RECHAZADO') {
+            return 'vetting-rechazado';
+        }
+
+        return 'vetting-pendiente';
+    };
+
     const confirmar = () => {
         setError('');
+
+        if (esAprobacion && !solicitud.estado_vetting?.puede_aprobar) {
+            setError('No se puede aprobar porque la solicitud no tiene una evaluación de vetting aprobada.');
+            return;
+        }
 
         if (!esAprobacion && !motivoRechazo.trim()) {
             setError('Debe ingresar el motivo del rechazo.');
@@ -79,7 +130,7 @@ function ConfirmDecisionReservaDialog({
 
                     <h2>
                         {esAprobacion
-                            ? '¿Deseas aprobar esta solicitud?'
+                            ? '¿Deseas aprobar esta solicitud evaluada?'
                             : '¿Deseas rechazar esta solicitud?'}
                     </h2>
 
@@ -96,6 +147,28 @@ function ConfirmDecisionReservaDialog({
                             <strong>Renta:</strong> {solicitud.moneda} {solicitud.renta_pactada_mensual}
                         </p>
                     </div>
+
+                    {esAprobacion && (
+                        <div className={`confirm-vetting-box ${obtenerClaseVetting()}`}>
+                            <div>
+                                <strong>{obtenerTextoVetting()}</strong>
+                                <p>
+                                    {estadoVetting?.mensaje ||
+                                        'La solicitud debe contar con evaluación aprobada antes de confirmar.'}
+                                </p>
+                            </div>
+
+                            <div className="confirm-vetting-score">
+                                <span>Score</span>
+                                <strong>
+                                    {estadoVetting?.score_riesgo !== null &&
+                                    estadoVetting?.score_riesgo !== undefined
+                                        ? `${estadoVetting.score_riesgo}/100`
+                                        : 'N/R'}
+                                </strong>
+                            </div>
+                        </div>
+                    )}
 
                     {!esAprobacion && (
                         <div className="confirm-reserva-field">
@@ -120,7 +193,7 @@ function ConfirmDecisionReservaDialog({
                             onChange={(e) => setObservacionGestor(e.target.value)}
                             placeholder={
                                 esAprobacion
-                                    ? 'Ejemplo: Solicitud aprobada luego de revisar los datos del prospecto.'
+                                    ? 'Ejemplo: Solicitud aprobada luego de revisar el vetting y el historial del inquilino.'
                                     : 'Ejemplo: Se recomienda actualizar los datos del perfil antes de volver a solicitar.'
                             }
                             maxLength={500}

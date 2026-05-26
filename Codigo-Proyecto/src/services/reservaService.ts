@@ -88,6 +88,81 @@ export interface DetalleMiSolicitudResponse {
     eventos: EventoReserva[];
 }
 
+export interface EstadoVettingSolicitud {
+    tiene_evaluacion: boolean;
+    resultado: string | null;
+    score_riesgo: number | null;
+    fecha_evaluacion: string | null;
+    observaciones: string | null;
+    puede_aprobar: boolean;
+    requiere_evaluacion: boolean;
+    mensaje: string;
+}
+
+export interface EvaluacionInquilino {
+    evaluacion_inquilino_id: number;
+    reserva_id: number;
+    evaluado_por_usuario_id: number;
+    score_riesgo: number;
+    historial_reservas: number | null;
+    observaciones: string | null;
+    resultado: 'PENDIENTE' | 'APROBADO' | 'OBSERVADO' | 'RECHAZADO';
+    fecha_evaluacion: string;
+
+    correo_evaluador?: string | null;
+    nombres_evaluador?: string | null;
+    apellidos_evaluador?: string | null;
+}
+
+export interface RegistrarEvaluacionInquilinoData {
+    score_riesgo: number;
+    resultado: 'PENDIENTE' | 'APROBADO' | 'OBSERVADO' | 'RECHAZADO';
+    observaciones?: string;
+}
+
+export interface RegistrarEvaluacionInquilinoResponse {
+    mensaje: string;
+    evaluacion: EvaluacionInquilino;
+    evento?: EventoReserva;
+    advertencias?: {
+        tipo: string;
+        nivel: string;
+        mensaje: string;
+    }[];
+    total_advertencias?: number;
+}
+
+export interface EvaluacionesInquilinoResponse {
+    mensaje: string;
+    reserva: {
+        reserva_id: number;
+        estado_reserva: string;
+        inquilino_id: number;
+        inmueble_id: number;
+        codigo_inmueble: string;
+        nombre_inmueble: string;
+        tipo_inmueble: string;
+    };
+    total: number;
+    evaluaciones: EvaluacionInquilino[];
+}
+
+export interface ResumenVettingGestionResponse {
+    mensaje: string;
+    resumen: {
+        total_solicitudes: number;
+        pendientes_vetting: number;
+        vetting_aprobado: number;
+        vetting_observado: number;
+        vetting_rechazado: number;
+        puede_aprobar: number;
+        no_puede_aprobar: number;
+        solicitudes_solicitadas: number;
+        solicitudes_aprobadas: number;
+        solicitudes_rechazadas: number;
+    };
+}
+
 const obtenerHeaders = () => {
     const token = localStorage.getItem('token');
 
@@ -154,10 +229,22 @@ export interface SolicitudReservaGestion extends SolicitudReserva {
     tiene_aval_bancario: boolean;
     tiene_contrato_trabajo: boolean;
     tiene_garante: boolean;
+
+    evaluacion_inquilino_id?: number | null;
+    resultado_evaluacion?: string | null;
+    score_riesgo?: number | null;
+    fecha_evaluacion?: string | null;
+    observaciones_evaluacion?: string | null;
+
+    estado_vetting?: EstadoVettingSolicitud;
 }
 
 export interface SolicitudesGestionResponse {
     mensaje: string;
+    filtros?: {
+        estado_reserva: string | null;
+        estado_vetting: string | null;
+    };
     total: number;
     solicitudes: SolicitudReservaGestion[];
 }
@@ -182,11 +269,20 @@ export interface RechazarSolicitudData {
 }
 
 export const listarSolicitudesGestion = async (
-    estadoReserva?: string
+    estadoReserva?: string,
+    estadoVetting?: string
 ): Promise<SolicitudesGestionResponse> => {
-    const query = estadoReserva
-        ? `?estado_reserva=${encodeURIComponent(estadoReserva)}`
-        : '';
+    const params = new URLSearchParams();
+
+    if (estadoReserva) {
+        params.append('estado_reserva', estadoReserva);
+    }
+
+    if (estadoVetting) {
+        params.append('estado_vetting', estadoVetting);
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : '';
 
     const response = await fetch(`${API_URL}/reservas/gestion/solicitudes${query}`, {
         method: 'GET',
@@ -257,4 +353,162 @@ export const obtenerEventosReservaGestion = async (
     );
 
     return manejarRespuesta<EventosGestionReservaResponse>(response);
+};
+
+export interface VettingInquilinoResponse {
+    mensaje: string;
+
+    solicitud: {
+        reserva_id: number;
+        estado_reserva: string;
+        fecha_solicitud: string;
+        fecha_inicio: string;
+        fecha_fin: string;
+        renta_pactada_mensual: number;
+        monto_total_estimado: number | null;
+        deposito_garantia: number | null;
+        moneda: string;
+        observacion_inquilino: string | null;
+    };
+
+    inmueble: {
+        inmueble_id: number;
+        codigo: string;
+        nombre: string;
+        tipo_inmueble: string;
+        subtipo_unidad: string | null;
+        direccion_linea1: string;
+        numero: string | null;
+        distrito: string | null;
+        ciudad: string | null;
+        provincia: string | null;
+        departamento: string | null;
+    };
+
+    publicacion: {
+        publicacion_id: number;
+        titulo: string;
+        precio_publicado_mensual: number;
+    };
+
+    inquilino: {
+        usuario_id: number;
+        correo: string;
+        estado_usuario: string;
+        email_verificado: boolean;
+        perfil: {
+            perfil_usuario_id: number | null;
+            nombres: string | null;
+            apellidos: string | null;
+            tipo_documento: string | null;
+            numero_documento: string | null;
+            telefono: string | null;
+            fecha_nacimiento: string | null;
+            sexo: string | null;
+            foto_url: string | null;
+            biografia: string | null;
+            direccion: string | null;
+            distrito: string | null;
+            ciudad: string | null;
+            pais: string | null;
+        };
+        vetting_basico: {
+            ingreso_mensual_referencial: number | null;
+            tiene_aval_bancario: boolean;
+            tiene_contrato_trabajo: boolean;
+            tiene_garante: boolean;
+            nombre_garante: string | null;
+            contacto_garante: string | null;
+        };
+    };
+
+    resumen_historial: {
+        total_solicitudes: number;
+        total_solicitadas: number;
+        total_aprobadas: number;
+        total_rechazadas: number;
+        total_canceladas: number;
+        total_activas: number;
+        total_finalizadas: number;
+        ultima_solicitud: string | null;
+    };
+
+    historial_reservas: SolicitudReserva[];
+
+    evaluacion_inquilino: EvaluacionInquilino | null;
+
+    resumen_automatico: {
+        nivel_riesgo_sugerido: string;
+        recomendacion: string;
+        total_alertas: number;
+        total_puntos_fuertes: number;
+        alertas: {
+            tipo: string;
+            nivel: string;
+            mensaje: string;
+        }[];
+        puntos_fuertes: {
+            tipo: string;
+            mensaje: string;
+        }[];
+    };
+
+    evaluacion_sugerida: {
+        score_riesgo_sugerido: number;
+        resultado_sugerido: 'PENDIENTE' | 'APROBADO' | 'OBSERVADO' | 'RECHAZADO';
+        mensaje: string;
+    };
+}
+
+export const obtenerVettingInquilinoGestion = async (
+    reservaId: number
+): Promise<VettingInquilinoResponse> => {
+    const response = await fetch(
+        `${API_URL}/reservas/gestion/solicitudes/${reservaId}/vetting`,
+        {
+            method: 'GET',
+            headers: obtenerHeaders()
+        }
+    );
+
+    return manejarRespuesta<VettingInquilinoResponse>(response);
+};
+
+export const registrarEvaluacionInquilinoGestion = async (
+    reservaId: number,
+    data: RegistrarEvaluacionInquilinoData
+): Promise<RegistrarEvaluacionInquilinoResponse> => {
+    const response = await fetch(
+        `${API_URL}/reservas/gestion/solicitudes/${reservaId}/evaluacion`,
+        {
+            method: 'POST',
+            headers: obtenerHeaders(),
+            body: JSON.stringify(data)
+        }
+    );
+
+    return manejarRespuesta<RegistrarEvaluacionInquilinoResponse>(response);
+};
+
+export const obtenerEvaluacionesInquilinoGestion = async (
+    reservaId: number
+): Promise<EvaluacionesInquilinoResponse> => {
+    const response = await fetch(
+        `${API_URL}/reservas/gestion/solicitudes/${reservaId}/evaluaciones`,
+        {
+            method: 'GET',
+            headers: obtenerHeaders()
+        }
+    );
+
+    return manejarRespuesta<EvaluacionesInquilinoResponse>(response);
+};
+
+export const obtenerResumenVettingGestion = async (): Promise<ResumenVettingGestionResponse> => {
+    const response = await fetch(`${API_URL}/reservas/gestion/vetting/resumen`, {
+        method: 'GET',
+        headers: obtenerHeaders()
+    });
+
+    return manejarRespuesta<ResumenVettingGestionResponse>(response);
 };
