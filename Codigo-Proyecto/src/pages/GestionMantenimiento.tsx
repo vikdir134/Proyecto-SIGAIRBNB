@@ -261,8 +261,8 @@ function GestionMantenimiento() {
                         )}
 
                         {inmuebleSeleccionado && (
-                            <div className="detalle-inmueble">
-                                <div className="detalle-header">
+                            <div className="mantenimiento-detalle-inmueble">
+                                <div className="mantenimiento-detalle-header">
                                     <div>
                                         <h3>{inmuebleSeleccionado.nombre}</h3>
                                         <p>{inmuebleSeleccionado.codigo}</p>
@@ -273,7 +273,7 @@ function GestionMantenimiento() {
                                     </span>
                                 </div>
 
-                                <div className="detalle-datos">
+                                <div className="mantenimiento-detalle-datos">
                                     <p><strong>Estado:</strong> {inmuebleSeleccionado.estado_operativo}</p>
                                     <p><strong>Dirección:</strong> {inmuebleSeleccionado.direccion_linea1 || '-'}</p>
                                     <p><strong>Número:</strong> {inmuebleSeleccionado.numero || '-'}</p>

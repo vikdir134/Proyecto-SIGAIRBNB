@@ -2188,3 +2188,60 @@
         width: 100%;
     }
 }
+
+/* ================================
+   FIX HU05 - DETALLE MANTENIMIENTO
+   Evita choque con .detalle-inmueble del calendario
+================================ */
+
+.mantenimiento-detalle-inmueble {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.mantenimiento-detalle-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.mantenimiento-detalle-header h3 {
+    margin: 0;
+    font-size: 20px;
+    color: #111827;
+}
+
+.mantenimiento-detalle-header p {
+    margin: 4px 0 0;
+    color: #777;
+}
+
+.mantenimiento-detalle-datos {
+    display: grid;
+    gap: 10px;
+}
+
+.mantenimiento-detalle-datos p {
+    margin: 0;
+    color: #7c5555;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.mantenimiento-detalle-datos strong {
+    color: #7c5555;
+}
+
+.mantenimiento-detalle-inmueble .form-actions {
+    display: flex;
+    justify-content: flex-start;
+    gap: 14px;
+    margin-top: 10px;
+}
+
+.mantenimiento-detalle-inmueble .btn-gestion-primary,
+.mantenimiento-detalle-inmueble .btn-danger {
+    min-width: 130px;
+}
