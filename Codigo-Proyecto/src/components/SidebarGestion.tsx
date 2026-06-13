@@ -8,6 +8,8 @@ function SidebarGestion() {
     const [nombreUsuario, setNombreUsuario] = useState('Usuario');
     const [iniciales, setIniciales] = useState('U');
     const [esAdmin, setEsAdmin] = useState(false);
+    const [esSecretario, setEsSecretario] = useState(false);
+    const [esCliente, setEsCliente] = useState(false);
 
     const cargarDatosUsuario = async () => {
         const token = localStorage.getItem('token');
@@ -25,8 +27,12 @@ function SidebarGestion() {
         if (usuarioGuardado) {
             try {
                 const usuario = JSON.parse(usuarioGuardado);
-                const roles = usuario.roles || [];
+                const roles: string[] = Array.isArray(usuario.roles)
+                    ? usuario.roles
+                    : [];
 
+                setEsCliente(roles.includes('CLIENTE'));
+                setEsSecretario(roles.includes('SECRETARIO'));
                 setEsAdmin(roles.includes('ADMIN'));
             } catch (error) {
                 console.error('No se pudo leer el usuario del localStorage:', error);
@@ -92,26 +98,70 @@ function SidebarGestion() {
                 </div>
 
                 <nav className="sidebar-menu">
-                    <NavLink to="/" end>Volver al inicio</NavLink>
-                    <NavLink to="/GestionHome">Dashboard</NavLink>
-                    <NavLink to="/GestionEdificio">Registrar Edificio</NavLink>
-                    <NavLink to="/GestionUnidad">Registrar Piso / Local</NavLink>
-                    <NavLink to="/GestionMantenimiento">Mantenimiento</NavLink>
-                    <NavLink to="/GestionDisponibilidad">Disponibilidad</NavLink>
-                    <NavLink to="/GestionPublicacion">Publicar inmueble</NavLink>
-
-                    <NavLink to="/GestionSolicitudesReserva">
-                        Solicitudes de reserva
+                    <NavLink to="/" end>
+                        Volver al inicio
                     </NavLink>
 
+                    {/* Funciones del cliente */}
+                    {esCliente && (
+                        <>
+                            <NavLink to="/Busqueda">
+                                Buscar inmuebles
+                            </NavLink>
+
+                            <NavLink to="/MisSolicitudesReserva">
+                                Mis solicitudes
+                            </NavLink>
+                        </>
+                    )}
+
+                    {/* Funciones del administrador */}
                     {esAdmin && (
-                        <NavLink to="/GestionAdmin">
-                            Mantenimiento Admin
+                        <>
+                            <NavLink to="/GestionHome">
+                                Dashboard
+                            </NavLink>
+
+                            <NavLink to="/GestionEdificio">
+                                Registrar Edificio
+                            </NavLink>
+
+                            <NavLink to="/GestionUnidad">
+                                Registrar Piso / Local
+                            </NavLink>
+
+                            <NavLink to="/GestionMantenimiento">
+                                Mantenimiento
+                            </NavLink>
+
+                            <NavLink to="/GestionDisponibilidad">
+                                Disponibilidad
+                            </NavLink>
+
+                            <NavLink to="/GestionPublicacion">
+                                Publicar inmueble
+                            </NavLink>
+
+                            <NavLink to="/GestionSolicitudesReserva">
+                                Solicitudes de reserva
+                            </NavLink>
+
+                            <NavLink to="/GestionAdmin">
+                                Mantenimiento Admin
+                            </NavLink>
+                        </>
+                    )}
+
+                    {/* Funciones del secretario */}
+                    {esSecretario && !esAdmin && (
+                        <NavLink to="/GestionSolicitudesReserva">
+                            Control de ocupación
                         </NavLink>
                     )}
 
-                    <NavLink to="/GestionPerfil">Perfil</NavLink>
-                    
+                    <NavLink to="/GestionPerfil">
+                        Perfil
+                    </NavLink>
                 </nav>
             </div>
 

@@ -7,9 +7,51 @@ import {
     listarSolicitudesGestion,
     aprobarSolicitudReservaGestion,
     rechazarSolicitudReservaGestion,
+    confirmarCheckinReservaGestion,
+    confirmarCheckoutReservaGestion,
     obtenerResumenVettingGestion,
     type SolicitudReservaGestion
 } from '../services/reservaService';
+
+interface JwtPayload {
+    roles?: string[];
+}
+
+const obtenerRolesDesdeToken = (): string[] => {
+    try {
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            return [];
+        }
+
+        const partes = token.split('.');
+
+        if (partes.length !== 3) {
+            return [];
+        }
+
+        const payloadBase64 = partes[1]
+            .replace(/-/g, '+')
+            .replace(/_/g, '/');
+
+        const payloadConRelleno = payloadBase64.padEnd(
+            Math.ceil(payloadBase64.length / 4) * 4,
+            '='
+        );
+
+        const payload = JSON.parse(
+            atob(payloadConRelleno)
+        ) as JwtPayload;
+
+        return Array.isArray(payload.roles)
+            ? payload.roles
+            : [];
+    } catch (error) {
+        console.error('No se pudieron leer los roles del token:', error);
+        return [];
+    }
+};
 
 function GestionSolicitudesReserva() {
     const [solicitudes, setSolicitudes] = useState<SolicitudReservaGestion[]>([]);
@@ -25,11 +67,22 @@ function GestionSolicitudesReserva() {
         solicitudes_aprobadas: number;
         solicitudes_rechazadas: number;
     } | null>(null);
+
+    const rolesUsuario = obtenerRolesDesdeToken();
+
+    const puedeControlarOcupacion = rolesUsuario.some((rol) =>
+        ['SECRETARIO', 'ADMIN'].includes(rol)
+    );
+
+    const esAdmin = rolesUsuario.includes('ADMIN');
+    
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
     const [mensaje, setMensaje] = useState('');
     const [procesandoId, setProcesandoId] = useState<number | null>(null);
-    const [estadoFiltro, setEstadoFiltro] = useState('SOLICITADA');
+    const [estadoFiltro, setEstadoFiltro] = useState(
+        esAdmin ? 'SOLICITADA' : 'APROBADA'
+    );
     const [estadoVettingFiltro, setEstadoVettingFiltro] = useState('TODOS');
     const [detalleAbierto, setDetalleAbierto] = useState(false);
     const [reservaDetalleId, setReservaDetalleId] = useState<number | null>(null);
@@ -57,7 +110,9 @@ function GestionSolicitudesReserva() {
                 estadoActual === 'TODAS' ? undefined : estadoActual;
 
             const estadoVettingParaEnviar =
-                estadoVettingFiltro === 'TODOS' ? undefined : estadoVettingFiltro;
+                esAdmin && estadoVettingFiltro !== 'TODOS'
+                    ? estadoVettingFiltro
+                    : undefined;
 
             const response = await listarSolicitudesGestion(
                 estadoParaEnviar,
@@ -65,7 +120,12 @@ function GestionSolicitudesReserva() {
             );
 
             setSolicitudes(response.solicitudes || []);
-            await cargarResumenVetting();
+
+                if (esAdmin) {
+                    await cargarResumenVetting();
+                } else {
+                    setResumenVetting(null);
+                }
         } catch (err) {
             const mensajeError =
                 err instanceof Error
@@ -179,6 +239,85 @@ function GestionSolicitudesReserva() {
         }
     };
 
+    const confirmarCheckin = async (
+        solicitud: SolicitudReservaGestion
+    ) => {
+        const confirmado = window.confirm(
+            `¿Confirmar el check-in de ${
+                solicitud.nombres_inquilino || 'este inquilino'
+            } en ${solicitud.nombre_inmueble}?`
+        );
+
+        if (!confirmado) return;
+
+        try {
+            setProcesandoId(solicitud.reserva_id);
+            setError('');
+            setMensaje('');
+
+            const response = await confirmarCheckinReservaGestion(
+                solicitud.reserva_id
+            );
+
+            await cargarSolicitudes(false);
+
+            setMensaje(
+                response.mensaje || 'Check-in confirmado correctamente.'
+            );
+        } catch (err) {
+            const mensajeError =
+                err instanceof Error
+                    ? err.message
+                    : 'Error al confirmar el check-in de la reserva.';
+
+            setError(mensajeError);
+        } finally {
+            setProcesandoId(null);
+        }
+    };
+
+    const confirmarCheckout = async (
+        solicitud: SolicitudReservaGestion
+    ) => {
+        const nombreInquilino = [
+            solicitud.nombres_inquilino,
+            solicitud.apellidos_inquilino
+        ]
+            .filter(Boolean)
+            .join(' ') || 'este inquilino';
+
+        const confirmado = window.confirm(
+            `¿Confirmar el check-out de ${nombreInquilino} en ${solicitud.nombre_inmueble}? La reserva quedará finalizada y el inmueble volverá a estar disponible.`
+        );
+
+        if (!confirmado) return;
+
+        try {
+            setProcesandoId(solicitud.reserva_id);
+            setError('');
+            setMensaje('');
+
+            const response = await confirmarCheckoutReservaGestion(
+                solicitud.reserva_id
+            );
+
+            await cargarSolicitudes(false);
+
+            setMensaje(
+                response.mensaje || 'Check-out confirmado correctamente.'
+            );
+        } catch (err) {
+            const mensajeError =
+                err instanceof Error
+                    ? err.message
+                    : 'Error al confirmar el check-out de la reserva.';
+
+            setError(mensajeError);
+        } finally {
+            setProcesandoId(null);
+        }
+    };
+
     useEffect(() => {
         cargarSolicitudes();
     }, [estadoFiltro, estadoVettingFiltro]);
@@ -194,6 +333,25 @@ function GestionSolicitudesReserva() {
         }
 
         return `${dia}/${mes}/${anio}`;
+    };
+
+    const formatearFechaHora = (fecha?: string | null) => {
+        if (!fecha) return 'Pendiente';
+
+        const fechaDate = new Date(fecha);
+
+        if (Number.isNaN(fechaDate.getTime())) {
+            return 'No especificada';
+        }
+
+        return fechaDate.toLocaleString('es-PE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
     };
 
     const obtenerUrlFoto = (foto?: string | null) => {
@@ -262,14 +420,21 @@ function GestionSolicitudesReserva() {
                 <section className="gestion-header-card">
                     <div>
                         <p className="gestion-section-label">
-                            Gestión de solicitudes
+                            {esAdmin
+                                ? 'Gestión de solicitudes'
+                                : 'Control de ocupación'}
                         </p>
 
-                        <h1>Solicitudes de reserva</h1>
+                        <h1>
+                            {esAdmin
+                                ? 'Solicitudes de reserva'
+                                : 'Reservas y ocupación'}
+                        </h1>
 
                         <p>
-                            Revisa las solicitudes enviadas por los prospectos a los inmuebles que publicaste.
-                            Puedes aprobarlas o rechazarlas según la evaluación correspondiente.
+                            {esAdmin
+                                ? 'Revisa el vetting y decide si las solicitudes deben aprobarse o rechazarse.'
+                                : 'Consulta las reservas aprobadas y activas para confirmar el check-in y check-out del inquilino.'}
                         </p>
                     </div>
             
@@ -292,29 +457,76 @@ function GestionSolicitudesReserva() {
                             onChange={(e) => setEstadoFiltro(e.target.value)}
                             disabled={cargando}
                         >
-                            <option value="SOLICITADA">Pendientes</option>
-                            <option value="APROBADA">Aprobadas</option>
-                            <option value="RECHAZADA">Rechazadas</option>
-                            <option value="CANCELADA">Canceladas</option>
-                            <option value="TODAS">Todas</option>
+                            {esAdmin && (
+                                <option value="SOLICITADA">
+                                    Pendientes
+                                </option>
+                            )}
+
+                            <option value="APROBADA">
+                                Aprobadas
+                            </option>
+
+                            <option value="ACTIVA">
+                                Activas / Ocupadas
+                            </option>
+
+                            <option value="FINALIZADA">
+                                Finalizadas
+                            </option>
+
+                            {esAdmin && (
+                                <>
+                                    <option value="RECHAZADA">
+                                        Rechazadas
+                                    </option>
+
+                                    <option value="CANCELADA">
+                                        Canceladas
+                                    </option>
+
+                                    <option value="EXPIRADA">
+                                        Expiradas
+                                    </option>
+
+                                    <option value="TODAS">
+                                        Todas
+                                    </option>
+                                </>
+                            )}
                         </select>
                     </div>
 
-                    <div>
-                        <label htmlFor="estadoVettingFiltro">Filtrar por vetting</label>
-                        <select
-                            id="estadoVettingFiltro"
-                            value={estadoVettingFiltro}
-                            onChange={(e) => setEstadoVettingFiltro(e.target.value)}
-                            disabled={cargando}
-                        >
-                            <option value="TODOS">Todos</option>
-                            <option value="PENDIENTE">Pendiente de vetting</option>
-                            <option value="APROBADO">Vetting aprobado</option>
-                            <option value="OBSERVADO">Vetting observado</option>
-                            <option value="RECHAZADO">Vetting rechazado</option>
-                        </select>
-                    </div>
+                    {esAdmin && (
+                        <div>
+                            <label htmlFor="estadoVettingFiltro">
+                                Filtrar por vetting
+                            </label>
+
+                            <select
+                                id="estadoVettingFiltro"
+                                value={estadoVettingFiltro}
+                                onChange={(e) =>
+                                    setEstadoVettingFiltro(e.target.value)
+                                }
+                                disabled={cargando}
+                            >
+                                <option value="TODOS">Todos</option>
+                                <option value="PENDIENTE">
+                                    Pendiente de vetting
+                                </option>
+                                <option value="APROBADO">
+                                    Vetting aprobado
+                                </option>
+                                <option value="OBSERVADO">
+                                    Vetting observado
+                                </option>
+                                <option value="RECHAZADO">
+                                    Vetting rechazado
+                                </option>
+                            </select>
+                        </div>
+                    )}
 
                     <p>
                         Filtros activos:{' '}
@@ -340,7 +552,7 @@ function GestionSolicitudesReserva() {
                     </button>
                 </section>
 
-                {resumenVetting && (
+                {esAdmin && resumenVetting && (
                     <section className="gestion-vetting-summary">
                         <button
                             type="button"
@@ -456,14 +668,24 @@ function GestionSolicitudesReserva() {
                                 <div className="gestion-solicitud-content">
                                     <div className="gestion-solicitud-top">
                                         <div>
-                                            <span className={`gestion-solicitud-status estado-${solicitud.estado_reserva.toLowerCase()}`}>
+                                            <span
+                                                className={`gestion-solicitud-status estado-${solicitud.estado_reserva.toLowerCase()}`}
+                                            >
                                                 {solicitud.estado_reserva === 'SOLICITADA'
                                                     ? 'Pendiente'
                                                     : solicitud.estado_reserva === 'APROBADA'
                                                         ? 'Aprobada'
-                                                        : solicitud.estado_reserva === 'RECHAZADA'
-                                                            ? 'Rechazada'
-                                                            : solicitud.estado_reserva}
+                                                        : solicitud.estado_reserva === 'ACTIVA'
+                                                            ? 'Ocupada'
+                                                            : solicitud.estado_reserva === 'FINALIZADA'
+                                                                ? 'Finalizada'
+                                                                : solicitud.estado_reserva === 'RECHAZADA'
+                                                                    ? 'Rechazada'
+                                                                    : solicitud.estado_reserva === 'CANCELADA'
+                                                                        ? 'Cancelada'
+                                                                        : solicitud.estado_reserva === 'EXPIRADA'
+                                                                            ? 'Expirada'
+                                                                            : solicitud.estado_reserva}
                                             </span>
 
                                             <span className={`gestion-vetting-status ${obtenerClaseVetting(solicitud)}`}>
@@ -512,6 +734,34 @@ function GestionSolicitudesReserva() {
                                         </p>
                                     </div>
 
+                                    {[
+                                        'APROBADA',
+                                        'ACTIVA',
+                                        'FINALIZADA'
+                                    ].includes(solicitud.estado_reserva) && (
+                                        <div
+                                            className={`gestion-solicitud-note ${
+                                                solicitud.estado_reserva === 'ACTIVA'
+                                                    ? 'gestion-solicitud-note-success'
+                                                    : ''
+                                            }`}
+                                        >
+                                            <strong>Control de ocupación</strong>
+
+                                            <div className="gestion-solicitud-grid">
+                                                <p>
+                                                    <strong>Check-in confirmado:</strong>{' '}
+                                                    {formatearFechaHora(solicitud.fecha_checkin)}
+                                                </p>
+
+                                                <p>
+                                                    <strong>Check-out confirmado:</strong>{' '}
+                                                    {formatearFechaHora(solicitud.fecha_checkout)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="gestion-prospecto-box">
                                         <h3>Datos del prospecto</h3>
 
@@ -556,35 +806,37 @@ function GestionSolicitudesReserva() {
                                             </p>
                                         </div>
                                     </div>
+                                    
+                                    {esAdmin && (
+                                        <div className={`gestion-vetting-box ${obtenerClaseVetting(solicitud)}`}>
+                                            <h3>Estado de vetting</h3>
 
-                                    <div className={`gestion-vetting-box ${obtenerClaseVetting(solicitud)}`}>
-                                        <h3>Estado de vetting</h3>
+                                            <p>
+                                                <strong>Resultado:</strong>{' '}
+                                                {solicitud.estado_vetting?.resultado || 'Pendiente de evaluación'}
+                                            </p>
 
-                                        <p>
-                                            <strong>Resultado:</strong>{' '}
-                                            {solicitud.estado_vetting?.resultado || 'Pendiente de evaluación'}
-                                        </p>
+                                            <p>
+                                                <strong>Score de riesgo:</strong>{' '}
+                                                {solicitud.estado_vetting?.score_riesgo !== null &&
+                                                solicitud.estado_vetting?.score_riesgo !== undefined
+                                                    ? `${solicitud.estado_vetting.score_riesgo}/100`
+                                                    : 'No registrado'}
+                                            </p>
 
-                                        <p>
-                                            <strong>Score de riesgo:</strong>{' '}
-                                            {solicitud.estado_vetting?.score_riesgo !== null &&
-                                            solicitud.estado_vetting?.score_riesgo !== undefined
-                                                ? `${solicitud.estado_vetting.score_riesgo}/100`
-                                                : 'No registrado'}
-                                        </p>
+                                            <p>
+                                                <strong>Mensaje:</strong>{' '}
+                                                {solicitud.estado_vetting?.mensaje || 'Aún no se ha registrado evaluación.'}
+                                            </p>
 
-                                        <p>
-                                            <strong>Mensaje:</strong>{' '}
-                                            {solicitud.estado_vetting?.mensaje || 'Aún no se ha registrado evaluación.'}
-                                        </p>
-
-                                        {solicitud.estado_reserva === 'SOLICITADA' &&
-                                            !solicitud.estado_vetting?.puede_aprobar && (
-                                                <p className="gestion-vetting-hint">
-                                                    Para aprobar esta solicitud, primero registra una evaluación con resultado APROBADO.
-                                                </p>
-                                            )}
-                                    </div>
+                                            {solicitud.estado_reserva === 'SOLICITADA' &&
+                                                !solicitud.estado_vetting?.puede_aprobar && (
+                                                    <p className="gestion-vetting-hint">
+                                                        Para aprobar esta solicitud, primero registra una evaluación con resultado APROBADO.
+                                                    </p>
+                                                )}
+                                        </div>
+                                    )}
 
                                     {solicitud.observacion_inquilino && (
                                         <div className="gestion-solicitud-note">
@@ -621,21 +873,24 @@ function GestionSolicitudesReserva() {
                                             Ver historial
                                         </button>
 
-                                        <button
-                                            type="button"
-                                            className={
-                                                solicitud.estado_vetting?.requiere_evaluacion
-                                                    ? 'gestion-btn-warning'
-                                                    : 'gestion-btn-secondary'
-                                            }
-                                            onClick={() => abrirDialogVetting(solicitud)}
-                                        >
-                                            {solicitud.estado_vetting?.requiere_evaluacion
-                                                ? 'Evaluar inquilino'
-                                                : 'Ver vetting'}
-                                        </button>
+                                        {esAdmin && (
+                                            <button
+                                                type="button"
+                                                className={
+                                                    solicitud.estado_vetting?.requiere_evaluacion
+                                                        ? 'gestion-btn-warning'
+                                                        : 'gestion-btn-secondary'
+                                                }
+                                                onClick={() => abrirDialogVetting(solicitud)}
+                                            >
+                                                {solicitud.estado_vetting?.requiere_evaluacion
+                                                    ? 'Evaluar inquilino'
+                                                    : 'Ver vetting'}
+                                            </button>
+                                        )}
 
-                                        {solicitud.estado_reserva === 'SOLICITADA' && (
+                                        {esAdmin &&
+                                            solicitud.estado_reserva === 'SOLICITADA' && (
                                             <>
                                                 <button
                                                     type="button"
@@ -671,6 +926,36 @@ function GestionSolicitudesReserva() {
                                                 )}
                                             </>
                                         )}
+
+                                        {puedeControlarOcupacion &&
+                                            solicitud.estado_reserva === 'APROBADA' && (
+                                                <button
+                                                    type="button"
+                                                    className="gestion-btn-checkin"
+                                                    onClick={() => confirmarCheckin(solicitud)}
+                                                    disabled={procesandoId === solicitud.reserva_id}
+                                                >
+                                                    {procesandoId === solicitud.reserva_id
+                                                        ? 'Confirmando check-in...'
+                                                        : 'Confirmar check-in'}
+                                                </button>
+                                            )
+                                        }
+
+                                        {puedeControlarOcupacion &&
+                                            solicitud.estado_reserva === 'ACTIVA' && (
+                                                <button
+                                                    type="button"
+                                                    className="gestion-btn-checkout"
+                                                    onClick={() => confirmarCheckout(solicitud)}
+                                                    disabled={procesandoId === solicitud.reserva_id}
+                                                >
+                                                    {procesandoId === solicitud.reserva_id
+                                                        ? 'Confirmando check-out...'
+                                                        : 'Confirmar check-out'}
+                                                </button>
+                                            )
+                                        }
                                     </div>
                                 </div>
                             </article>
@@ -688,27 +973,31 @@ function GestionSolicitudesReserva() {
                 }}
             />
 
-            <VettingInquilinoDialog
-                abierto={vettingAbierto}
-                reservaId={reservaVettingId}
-                onCerrar={() => {
-                    setVettingAbierto(false);
-                    setReservaVettingId(null);
-                }}
-                onEvaluacionRegistrada={async () => {
-                    await cargarSolicitudes(false);
-                    await cargarResumenVetting();
-                }}
-            />
+            {esAdmin && (
+                <VettingInquilinoDialog
+                    abierto={vettingAbierto}
+                    reservaId={reservaVettingId}
+                    onCerrar={() => {
+                        setVettingAbierto(false);
+                        setReservaVettingId(null);
+                    }}
+                    onEvaluacionRegistrada={async () => {
+                        await cargarSolicitudes(false);
+                        await cargarResumenVetting();
+                    }}
+                />
+            )}
 
-            <ConfirmDecisionReservaDialog
-                abierto={decisionAbierta}
-                tipo={tipoDecision}
-                solicitud={solicitudDecision}
-                cargando={procesandoId !== null}
-                onCerrar={cerrarDialogDecision}
-                onConfirmar={confirmarDecisionReserva}
-            /> 
+            {esAdmin && (
+                <ConfirmDecisionReservaDialog
+                    abierto={decisionAbierta}
+                    tipo={tipoDecision}
+                    solicitud={solicitudDecision}
+                    cargando={procesandoId !== null}
+                    onCerrar={cerrarDialogDecision}
+                    onConfirmar={confirmarDecisionReserva}
+                />
+            )}
 
         </div>
     );

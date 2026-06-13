@@ -27,6 +27,12 @@ export interface SolicitudReserva {
     motivo_rechazo: string | null;
     fecha_decision: string | null;
 
+    //HU12
+    fecha_checkin?: string | null;
+    fecha_checkout?: string | null;
+    checkin_confirmado_por?: number | null;
+    checkout_confirmado_por?: number | null;
+
     created_at: string;
     updated_at?: string;
 
@@ -259,6 +265,12 @@ export interface RechazarSolicitudResponse {
     reserva: SolicitudReserva;
 }
 
+export interface ControlOcupacionReservaResponse {
+    mensaje: string;
+    reserva: SolicitudReserva;
+    evento: EventoReserva;
+}
+
 export interface AprobarSolicitudData {
     observacion_gestor?: string;
 }
@@ -322,6 +334,36 @@ export const rechazarSolicitudReservaGestion = async (
     );
 
     return manejarRespuesta<RechazarSolicitudResponse>(response);
+};
+
+export const confirmarCheckinReservaGestion = async (
+    reservaId: number
+): Promise<ControlOcupacionReservaResponse> => {
+    const response = await fetch(
+        `${API_URL}/reservas/gestion/solicitudes/${reservaId}/checkin`,
+        {
+            method: 'PATCH',
+            headers: obtenerHeaders(),
+            body: JSON.stringify({})
+        }
+    );
+
+    return manejarRespuesta<ControlOcupacionReservaResponse>(response);
+};
+
+export const confirmarCheckoutReservaGestion = async (
+    reservaId: number
+): Promise<ControlOcupacionReservaResponse> => {
+    const response = await fetch(
+        `${API_URL}/reservas/gestion/solicitudes/${reservaId}/checkout`,
+        {
+            method: 'PATCH',
+            headers: obtenerHeaders(),
+            body: JSON.stringify({})
+        }
+    );
+
+    return manejarRespuesta<ControlOcupacionReservaResponse>(response);
 };
 
 export interface EventosGestionReservaResponse {

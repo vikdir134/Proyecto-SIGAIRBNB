@@ -13,6 +13,7 @@ const adminRoutes = require('./routes/admin.routes');
 const disponibilidadRoutes = require('./routes/disponibilidad.routes');
 const publicacionRoutes = require('./routes/publicacion.routes');
 const reservaRoutes = require('./routes/reserva.routes');
+const secretarioRoutes = require('./routes/secretario.routes');
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/disponibilidad', disponibilidadRoutes);
 app.use('/api/publicaciones', publicacionRoutes);
 app.use('/api/reservas', reservaRoutes);
+app.use('/api/secretarios', secretarioRoutes);
 
 app.get('/', (req, res) => {
   res.json({

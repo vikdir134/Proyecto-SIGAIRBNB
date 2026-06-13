@@ -14,7 +14,9 @@ const {
   obtenerVettingInquilinoReservaGestion,
   obtenerUltimaEvaluacionInquilinoPorReserva,
   listarEvaluacionesInquilinoReservaGestion,
-  registrarEvaluacionConEventoReservaGestion
+  registrarEvaluacionConEventoReservaGestion,
+  confirmarCheckinReservaGestion,
+  confirmarCheckoutReservaGestion
 } = require('../models/reserva.model');
 
 const limpiarTexto = (valor) => {
@@ -416,8 +418,53 @@ const obtenerSolicitudesGestion = async (req, res) => {
 
     const { estado_reserva, estado_vetting } = req.query;
 
+    const rolesUsuario = Array.isArray(req.usuario.roles)
+      ? req.usuario.roles
+      : [];
+
+    const esAdmin = rolesUsuario.includes('ADMIN');
+    const esSecretario = rolesUsuario.includes('SECRETARIO');
+
     let estadoNormalizado = limpiarTexto(estado_reserva).toUpperCase();
     let estadoVettingNormalizado = limpiarTexto(estado_vetting).toUpperCase();
+
+    /*
+      El secretario solamente controla el ciclo de ocupación.
+      No puede consultar solicitudes pendientes, rechazadas,
+      canceladas o expiradas.
+    */
+    if (esSecretario && !esAdmin) {
+      const estadosPermitidosSecretario = [
+        'APROBADA',
+        'ACTIVA',
+        'FINALIZADA'
+      ];
+
+      if (
+        estadoNormalizado &&
+        !estadosPermitidosSecretario.includes(estadoNormalizado)
+      ) {
+        return res.status(403).json({
+          mensaje: 'El secretario solo puede consultar reservas aprobadas, activas o finalizadas',
+          estados_permitidos: estadosPermitidosSecretario
+        });
+      }
+
+      if (estadoVettingNormalizado) {
+        return res.status(403).json({
+          mensaje: 'El secretario no tiene permisos para consultar información de vetting'
+        });
+      }
+
+      /*
+        Si no envía filtro, comenzará viendo las aprobadas.
+      */
+      if (!estadoNormalizado) {
+        estadoNormalizado = 'APROBADA';
+      }
+
+      estadoVettingNormalizado = '';
+    }
 
     const estadosPermitidos = [
       'SOLICITADA',
@@ -733,6 +780,28 @@ const obtenerEventosReservaGestion = async (req, res) => {
       return res.status(404).json({
         mensaje: 'La solicitud de reserva no existe o no pertenece a tus publicaciones'
       });
+    }
+
+    const rolesUsuario = Array.isArray(req.usuario.roles)
+      ? req.usuario.roles
+      : [];
+
+    const esAdmin = rolesUsuario.includes('ADMIN');
+    const esSecretario = rolesUsuario.includes('SECRETARIO');
+
+    if (esSecretario && !esAdmin) {
+      const estadosPermitidosSecretario = [
+        'APROBADA',
+        'ACTIVA',
+        'FINALIZADA'
+      ];
+
+      if (!estadosPermitidosSecretario.includes(solicitud.estado_reserva)) {
+        return res.status(403).json({
+          mensaje: 'El secretario no puede consultar el historial de esta solicitud',
+          estado_actual: solicitud.estado_reserva
+        });
+      }
     }
 
     const eventos = await listarEventosReservaGestion(
@@ -1219,6 +1288,140 @@ const obtenerResumenVettingGestion = async (req, res) => {
   }
 };
 
+const confirmarCheckinReserva = async (req, res) => {
+  try {
+    const usuarioPublicadorId = req.usuario.usuario_id;
+    const gestorId = req.usuario.usuario_id;
+
+    const { reserva_id } = req.params;
+
+    const reservaIdNumero = Number(reserva_id);
+
+    if (Number.isNaN(reservaIdNumero) || reservaIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El ID de la reserva no es válido'
+      });
+    }
+
+    const solicitud = await obtenerSolicitudGestionPorId(
+      usuarioPublicadorId,
+      reservaIdNumero
+    );
+
+    if (!solicitud) {
+      return res.status(404).json({
+        mensaje: 'La reserva no existe o no pertenece a tus publicaciones'
+      });
+    }
+
+    if (solicitud.inquilino_id === gestorId) {
+      return res.status(403).json({
+        mensaje: 'No puedes confirmar el check-in de tu propia reserva'
+      });
+    }
+
+    if (solicitud.estado_reserva !== 'APROBADA') {
+      return res.status(400).json({
+        mensaje: 'Solo se puede confirmar check-in de una reserva APROBADA',
+        estado_actual: solicitud.estado_reserva
+      });
+    }
+
+    const resultado = await confirmarCheckinReservaGestion({
+      usuario_publicador_id: usuarioPublicadorId,
+      reserva_id: reservaIdNumero,
+      gestor_id: gestorId
+    });
+
+    if (!resultado) {
+      return res.status(400).json({
+        mensaje: 'No se pudo confirmar el check-in. Verifica que la reserva siga en estado APROBADA'
+      });
+    }
+
+    return res.json({
+      mensaje: 'Check-in confirmado correctamente',
+      reserva: resultado.reserva,
+      evento: resultado.evento
+    });
+
+  } catch (error) {
+    console.error('Error al confirmar check-in:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al confirmar check-in',
+      error: error.message
+    });
+  }
+};
+
+const confirmarCheckoutReserva = async (req, res) => {
+  try {
+    const usuarioPublicadorId = req.usuario.usuario_id;
+    const gestorId = req.usuario.usuario_id;
+
+    const { reserva_id } = req.params;
+
+    const reservaIdNumero = Number(reserva_id);
+
+    if (Number.isNaN(reservaIdNumero) || reservaIdNumero <= 0) {
+      return res.status(400).json({
+        mensaje: 'El ID de la reserva no es válido'
+      });
+    }
+
+    const solicitud = await obtenerSolicitudGestionPorId(
+      usuarioPublicadorId,
+      reservaIdNumero
+    );
+
+    if (!solicitud) {
+      return res.status(404).json({
+        mensaje: 'La reserva no existe o no pertenece a tus publicaciones'
+      });
+    }
+
+    if (solicitud.inquilino_id === gestorId) {
+      return res.status(403).json({
+        mensaje: 'No puedes confirmar el check-out de tu propia reserva'
+      });
+    }
+
+    if (solicitud.estado_reserva !== 'ACTIVA') {
+      return res.status(400).json({
+        mensaje: 'Solo se puede confirmar check-out de una reserva ACTIVA',
+        estado_actual: solicitud.estado_reserva
+      });
+    }
+
+    const resultado = await confirmarCheckoutReservaGestion({
+      usuario_publicador_id: usuarioPublicadorId,
+      reserva_id: reservaIdNumero,
+      gestor_id: gestorId
+    });
+
+    if (!resultado) {
+      return res.status(400).json({
+        mensaje: 'No se pudo confirmar el check-out. Verifica que la reserva siga en estado ACTIVA'
+      });
+    }
+
+    return res.json({
+      mensaje: 'Check-out confirmado correctamente',
+      reserva: resultado.reserva,
+      evento: resultado.evento
+    });
+
+  } catch (error) {
+    console.error('Error al confirmar check-out:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al confirmar check-out',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   solicitarReserva,
   obtenerMisSolicitudesReserva,
@@ -1230,5 +1433,7 @@ module.exports = {
   obtenerVettingInquilinoGestion,
   registrarEvaluacionInquilinoGestion,
   obtenerEvaluacionesInquilinoGestion,
-  obtenerResumenVettingGestion
+  obtenerResumenVettingGestion,
+  confirmarCheckinReserva,
+ confirmarCheckoutReserva
 };

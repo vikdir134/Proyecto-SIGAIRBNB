@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 
-type RutaAdminProps = {
+type RutaGestionReservasProps = {
     children: ReactNode;
 };
 
-function RutaAdmin({ children }: RutaAdminProps) {
+function RutaGestionReservas({
+    children
+}: RutaGestionReservasProps) {
     const token = localStorage.getItem('token');
     const usuarioGuardado = localStorage.getItem('usuario');
 
@@ -17,26 +19,23 @@ function RutaAdmin({ children }: RutaAdminProps) {
         const usuario = JSON.parse(usuarioGuardado);
 
         const roles: string[] = Array.isArray(usuario.roles)
-            ? usuario.roles
+            ? usuario.roles.map((rol: unknown) =>
+                String(rol).toUpperCase()
+            )
             : [];
 
-        if (!roles.includes('ADMIN')) {
-            if (roles.includes('SECRETARIO')) {
-                return (
-                    <Navigate
-                        to="/GestionSolicitudesReserva"
-                        replace
-                    />
-                );
-            }
+        const tienePermiso =
+            roles.includes('ADMIN') ||
+            roles.includes('SECRETARIO');
 
+        if (!tienePermiso) {
             return <Navigate to="/" replace />;
         }
 
         return <>{children}</>;
     } catch (error) {
         console.error(
-            'No se pudieron validar los permisos del usuario:',
+            'No se pudieron validar los permisos para gestionar reservas:',
             error
         );
 
@@ -44,4 +43,4 @@ function RutaAdmin({ children }: RutaAdminProps) {
     }
 }
 
-export default RutaAdmin;
+export default RutaGestionReservas;

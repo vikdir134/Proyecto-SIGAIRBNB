@@ -45,7 +45,24 @@ function Login() {
             localStorage.setItem('token', data.token);
             localStorage.setItem('usuario', JSON.stringify(data.usuario));
 
+            const roles: string[] = Array.isArray(data.usuario?.roles)
+                ? data.usuario.roles.map((rol: unknown) =>
+                    String(rol).toUpperCase()
+                )
+                : [];
+
+            if (roles.includes('ADMIN')) {
+                navigate('/GestionHome');
+                return;
+            }
+
+            if (roles.includes('SECRETARIO')) {
+                navigate('/GestionSolicitudesReserva');
+                return;
+            }
+
             navigate('/');
+
 
         } catch (error) {
             setError('No se pudo conectar con el servidor');

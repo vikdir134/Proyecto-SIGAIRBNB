@@ -2245,3 +2245,200 @@
 .mantenimiento-detalle-inmueble .btn-danger {
     min-width: 130px;
 }
+
+/* ================================
+   HU12 - CONTROL DE OCUPACIÓN
+================================ */
+
+/* Reserva con inquilino dentro del inmueble */
+.estado-activa {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+/* Reserva cuyo ciclo ya terminó */
+.estado-finalizada {
+    background: #f3f4f6;
+    color: #4b5563;
+    border: 1px solid #d1d5db;
+}
+
+/* Reserva expirada */
+.estado-expirada {
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fed7aa;
+}
+
+/* Botón para iniciar la ocupación */
+.gestion-btn-checkin {
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
+    background: #047857;
+    color: #ffffff;
+    font-weight: 800;
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.gestion-btn-checkin:hover:not(:disabled) {
+    background: #065f46;
+    transform: translateY(-1px);
+}
+
+/* Botón para terminar la ocupación */
+.gestion-btn-checkout {
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
+    background: #1d4ed8;
+    color: #ffffff;
+    font-weight: 800;
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.gestion-btn-checkout:hover:not(:disabled) {
+    background: #1e40af;
+    transform: translateY(-1px);
+}
+
+.gestion-btn-checkin:disabled,
+.gestion-btn-checkout:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Resalta visualmente una reserva actualmente ocupada */
+.gestion-solicitud-card:has(.estado-activa) {
+    border-color: #93c5fd;
+    box-shadow: 0 14px 34px rgba(29, 78, 216, 0.12);
+}
+
+/* Reduce el énfasis de una reserva ya finalizada */
+.gestion-solicitud-card:has(.estado-finalizada) {
+    border-color: #d1d5db;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+@media (max-width: 640px) {
+    .gestion-btn-checkin,
+    .gestion-btn-checkout {
+        width: 100%;
+    }
+}
+
+/* =========================================================
+   GESTIÓN DE SECRETARIOS
+   ========================================================= */
+
+.secretario-asignacion-form {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    align-items: end;
+    gap: 16px;
+    margin: 24px 0;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background-color: #f8fafc;
+}
+
+.secretario-asignacion-form .search-item {
+    margin: 0;
+}
+
+.secretario-asignacion-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.secretario-asignacion-form input {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background-color: #ffffff;
+    font-size: 0.95rem;
+    outline: none;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.secretario-asignacion-form input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.secretario-asignacion-form input:disabled {
+    cursor: not-allowed;
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+.secretario-asignacion-form .btn-gestion-primary {
+    min-height: 44px;
+    white-space: nowrap;
+}
+
+.estado-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 82px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.estado-activo {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.estado-inactivo {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.btn-tabla {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.detalle-confirmacion {
+    margin: 18px 0;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.detalle-confirmacion p {
+    margin: 6px 0;
+    color: #334155;
+}
+
+@media (max-width: 768px) {
+    .secretario-asignacion-form {
+        grid-template-columns: 1fr;
+    }
+
+    .secretario-asignacion-form .btn-gestion-primary {
+        width: 100%;
+    }
+}

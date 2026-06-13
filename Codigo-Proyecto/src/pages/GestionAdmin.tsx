@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import SidebarGestion from '../components/SidebarGestion';
 
 import {
@@ -7,6 +7,14 @@ import {
     reactivarUsuarioAdmin,
     type UsuarioAdmin
 } from '../services/adminService';
+
+import {
+    obtenerSecretariosEmpresa,
+    asignarSecretarioEmpresa,
+    revocarSecretarioEmpresa,
+    reactivarSecretarioEmpresa,
+    type SecretarioAsignado
+} from '../services/secretarioService';
 
 function GestionAdmin() {
     const [usuarios, setUsuarios] = useState<UsuarioAdmin[]>([]);
@@ -18,6 +26,16 @@ function GestionAdmin() {
 
     const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
     const [accionConfirmacion, setAccionConfirmacion] = useState<'INACTIVAR' | 'REACTIVAR' | null>(null);
+
+    const [secretarios, setSecretarios] = useState<SecretarioAsignado[]>([]);
+    const [correoSecretario, setCorreoSecretario] = useState('');
+    const [cargandoSecretarios, setCargandoSecretarios] = useState(false);
+
+    const [secretarioSeleccionado, setSecretarioSeleccionado] =
+        useState<SecretarioAsignado | null>(null);
+
+    const [mostrarConfirmacionRevocar, setMostrarConfirmacionRevocar] =
+        useState(false);
 
     const cargarUsuarios = async () => {
         try {
@@ -34,8 +52,136 @@ function GestionAdmin() {
         }
     };
 
+    const cargarSecretarios = async () => {
+        try {
+            setCargandoSecretarios(true);
+            setError('');
+
+            const data = await obtenerSecretariosEmpresa();
+            setSecretarios(data.secretarios || []);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Error al cargar los secretarios'
+            );
+        } finally {
+            setCargandoSecretarios(false);
+        }
+    };
+
+    const manejarAsignacionSecretario = async (
+        e: FormEvent<HTMLFormElement>
+    ) => {
+        e.preventDefault();
+
+        const correoNormalizado = correoSecretario
+            .trim()
+            .toLowerCase();
+
+        if (!correoNormalizado) {
+            setError('Ingresa el correo del usuario que será secretario');
+            return;
+        }
+
+        try {
+            setCargandoSecretarios(true);
+            setMensaje('');
+            setError('');
+
+            const respuesta = await asignarSecretarioEmpresa(
+                correoNormalizado
+            );
+
+            setCorreoSecretario('');
+
+            await cargarSecretarios();
+
+            setMensaje(respuesta.mensaje);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Error al asignar el secretario'
+            );
+        } finally {
+            setCargandoSecretarios(false);
+        }
+    };
+
+    const abrirConfirmacionRevocar = (
+        secretario: SecretarioAsignado
+    ) => {
+        setSecretarioSeleccionado(secretario);
+        setMostrarConfirmacionRevocar(true);
+        setMensaje('');
+        setError('');
+    };
+
+    const cerrarConfirmacionRevocar = () => {
+        setSecretarioSeleccionado(null);
+        setMostrarConfirmacionRevocar(false);
+    };
+
+    const ejecutarRevocacionSecretario = async () => {
+        if (!secretarioSeleccionado) {
+            return;
+        }
+
+        try {
+            setCargandoSecretarios(true);
+            setMensaje('');
+            setError('');
+
+            const respuesta = await revocarSecretarioEmpresa(
+                secretarioSeleccionado.empresa_secretario_id
+            );
+
+            cerrarConfirmacionRevocar();
+
+            await cargarSecretarios();
+
+            setMensaje(respuesta.mensaje);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Error al revocar el acceso del secretario'
+            );
+        } finally {
+            setCargandoSecretarios(false);
+        }
+    };
+
+    const ejecutarReactivacionSecretario = async (
+        secretario: SecretarioAsignado
+    ) => {
+        try {
+            setCargandoSecretarios(true);
+            setMensaje('');
+            setError('');
+
+            const respuesta = await reactivarSecretarioEmpresa(
+                secretario.empresa_secretario_id
+            );
+
+            await cargarSecretarios();
+
+            setMensaje(respuesta.mensaje);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Error al reactivar el acceso del secretario'
+            );
+        } finally {
+            setCargandoSecretarios(false);
+        }
+    };
+
     useEffect(() => {
         cargarUsuarios();
+        cargarSecretarios();
     }, []);
 
     const abrirConfirmacion = (usuario: UsuarioAdmin, accion: 'INACTIVAR' | 'REACTIVAR') => {
@@ -91,6 +237,161 @@ function GestionAdmin() {
 
                 {mensaje && <div className="alert-success">{mensaje}</div>}
                 {error && <div className="alert-error">{error}</div>}
+
+                <section className="gestion-card">
+                    <div className="section-title-row">
+                        <div>
+                            <h2>Gestión de secretarios</h2>
+                            <p>
+                                Asigna usuarios para que puedan controlar el check-in
+                                y check-out de los inmuebles de tu empresa.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="btn-gestion-secondary"
+                            onClick={cargarSecretarios}
+                            disabled={cargandoSecretarios}
+                        >
+                            Actualizar
+                        </button>
+                    </div>
+
+                    <form
+                        onSubmit={manejarAsignacionSecretario}
+                        className="secretario-asignacion-form"
+                    >
+                        <div className="search-item">
+                            <label htmlFor="correoSecretario">
+                                Correo del usuario
+                            </label>
+
+                            <input
+                                type="email"
+                                id="correoSecretario"
+                                value={correoSecretario}
+                                placeholder="secretario@correo.com"
+                                onChange={(e) =>
+                                    setCorreoSecretario(e.target.value)
+                                }
+                                disabled={cargandoSecretarios}
+                                required
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            className="btn-gestion-primary"
+                            disabled={cargandoSecretarios}
+                        >
+                            {cargandoSecretarios
+                                ? 'Procesando...'
+                                : 'Asignar secretario'}
+                        </button>
+                    </form>
+
+                    {cargandoSecretarios && (
+                        <p>Cargando secretarios...</p>
+                    )}
+
+                    {!cargandoSecretarios && secretarios.length === 0 && (
+                        <p>
+                            Todavía no tienes secretarios asignados a tu empresa.
+                        </p>
+                    )}
+
+                    {secretarios.length > 0 && (
+                        <div className="tabla-responsive">
+                            <table className="gestion-table">
+                                <thead>
+                                    <tr>
+                                        <th>Usuario</th>
+                                        <th>Correo</th>
+                                        <th>Fecha de asignación</th>
+                                        <th>Estado</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {secretarios.map((secretario) => {
+                                        const nombreCompleto = `
+                                            ${secretario.nombres || ''}
+                                            ${secretario.apellidos || ''}
+                                        `.trim();
+
+                                        return (
+                                            <tr
+                                                key={
+                                                    secretario.empresa_secretario_id
+                                                }
+                                            >
+                                                <td>
+                                                    {nombreCompleto || '-'}
+                                                </td>
+
+                                                <td>
+                                                    {secretario.correo_secretario}
+                                                </td>
+
+                                                <td>
+                                                    {secretario.fecha_asignacion
+                                                        ? new Date(
+                                                            secretario.fecha_asignacion
+                                                        ).toLocaleString()
+                                                        : '-'}
+                                                </td>
+
+                                                <td>
+                                                    <span
+                                                        className={
+                                                            secretario.activo
+                                                                ? 'estado-badge estado-activo'
+                                                                : 'estado-badge estado-inactivo'
+                                                        }
+                                                    >
+                                                        {secretario.activo
+                                                            ? 'Activo'
+                                                            : 'Revocado'}
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    {secretario.activo ? (
+                                                        <button
+                                                            type="button"
+                                                            className="btn-danger btn-tabla"
+                                                            onClick={() =>
+                                                                abrirConfirmacionRevocar(secretario)
+                                                            }
+                                                            disabled={cargandoSecretarios}
+                                                        >
+                                                            Revocar acceso
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            className="btn-gestion-primary btn-tabla"
+                                                            onClick={() =>
+                                                                ejecutarReactivacionSecretario(secretario)
+                                                            }
+                                                            disabled={cargandoSecretarios}
+                                                        >
+                                                            {cargandoSecretarios
+                                                                ? 'Procesando...'
+                                                                : 'Reactivar acceso'}
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </section>
 
                 <section className="gestion-card">
                     <div className="section-title-row">
@@ -221,6 +522,62 @@ function GestionAdmin() {
                                         setAccionConfirmacion(null);
                                     }}
                                     disabled={cargando}
+                                >
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {mostrarConfirmacionRevocar && secretarioSeleccionado && (
+                    <div className="modal-overlay">
+                        <div className="modal-card">
+                            <h2>Revocar acceso de secretario</h2>
+
+                            <p>
+                                ¿Seguro que deseas quitarle el acceso a los
+                                inmuebles de tu empresa?
+                            </p>
+
+                            <div className="detalle-confirmacion">
+                                <p>
+                                    <strong>Usuario:</strong>{' '}
+                                    {`${secretarioSeleccionado.nombres || ''} ${
+                                        secretarioSeleccionado.apellidos || ''
+                                    }`.trim() || '-'}
+                                </p>
+
+                                <p>
+                                    <strong>Correo:</strong>{' '}
+                                    {secretarioSeleccionado.correo_secretario}
+                                </p>
+
+                                <p>
+                                    <strong>Estado:</strong>{' '}
+                                    {secretarioSeleccionado.activo
+                                        ? 'Activo'
+                                        : 'Revocado'}
+                                </p>
+                            </div>
+
+                            <div className="form-actions modal-actions">
+                                <button
+                                    type="button"
+                                    className="btn-danger"
+                                    onClick={ejecutarRevocacionSecretario}
+                                    disabled={cargandoSecretarios}
+                                >
+                                    {cargandoSecretarios
+                                        ? 'Revocando...'
+                                        : 'Confirmar revocación'}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="btn-gestion-secondary"
+                                    onClick={cerrarConfirmacionRevocar}
+                                    disabled={cargandoSecretarios}
                                 >
                                     Cancelar
                                 </button>

@@ -12,27 +12,117 @@ const {
   obtenerVettingInquilinoGestion,
   registrarEvaluacionInquilinoGestion,
   obtenerEvaluacionesInquilinoGestion,
-  obtenerResumenVettingGestion
+  obtenerResumenVettingGestion,
+  confirmarCheckinReserva,
+  confirmarCheckoutReserva
 } = require('../controllers/reserva.controller');
 
 const {
   verificarToken,
+  autorizarRoles
 } = require('../middlewares/auth.middleware');
 
 /*
-  HU09 - Solicitud de Reserva
-  El inquilino autenticado envía una solicitud para ocupar un inmueble publicado.
+  HU09 - Solicitudes propias del cliente
 */
-router.get('/mis-solicitudes',verificarToken,obtenerMisSolicitudesReserva);
-router.post('/solicitudes',verificarToken,solicitarReserva);
-router.get('/gestion/solicitudes',verificarToken,obtenerSolicitudesGestion);
-router.get('/gestion/vetting/resumen',verificarToken,obtenerResumenVettingGestion);
-router.get('/gestion/solicitudes/:reserva_id/vetting', verificarToken, obtenerVettingInquilinoGestion); //HU11
-router.get('/gestion/solicitudes/:reserva_id/evaluaciones', verificarToken, obtenerEvaluacionesInquilinoGestion); //HU11
-router.post('/gestion/solicitudes/:reserva_id/evaluacion', verificarToken, registrarEvaluacionInquilinoGestion); //HU11
-router.get('/gestion/solicitudes/:reserva_id/eventos',verificarToken,obtenerEventosReservaGestion);
-router.patch('/gestion/solicitudes/:reserva_id/aprobar',verificarToken,aprobarSolicitudReserva);
-router.patch('/gestion/solicitudes/:reserva_id/rechazar',verificarToken,rechazarSolicitudReserva);
-router.get('/mis-solicitudes/:reserva_id',verificarToken,obtenerDetalleMiSolicitudReserva);
+router.get(
+  '/mis-solicitudes',
+  verificarToken,
+  obtenerMisSolicitudesReserva
+);
+
+router.post(
+  '/solicitudes',
+  verificarToken,
+  solicitarReserva
+);
+
+router.get(
+  '/mis-solicitudes/:reserva_id',
+  verificarToken,
+  obtenerDetalleMiSolicitudReserva
+);
+
+/*
+  Gestión de reservas
+  ADMIN y SECRETARIO pueden consultar reservas.
+*/
+router.get(
+  '/gestion/solicitudes',
+  verificarToken,
+  autorizarRoles('ADMIN', 'SECRETARIO'),
+  obtenerSolicitudesGestion
+);
+
+router.get(
+  '/gestion/solicitudes/:reserva_id/eventos',
+  verificarToken,
+  autorizarRoles('ADMIN', 'SECRETARIO'),
+  obtenerEventosReservaGestion
+);
+
+/*
+  HU10 y HU11
+  Solo ADMIN puede evaluar, aprobar o rechazar.
+*/
+router.get(
+  '/gestion/vetting/resumen',
+  verificarToken,
+  autorizarRoles('ADMIN'),
+  obtenerResumenVettingGestion
+);
+
+router.get(
+  '/gestion/solicitudes/:reserva_id/vetting',
+  verificarToken,
+  autorizarRoles('ADMIN'),
+  obtenerVettingInquilinoGestion
+);
+
+router.get(
+  '/gestion/solicitudes/:reserva_id/evaluaciones',
+  verificarToken,
+  autorizarRoles('ADMIN'),
+  obtenerEvaluacionesInquilinoGestion
+);
+
+router.post(
+  '/gestion/solicitudes/:reserva_id/evaluacion',
+  verificarToken,
+  autorizarRoles('ADMIN'),
+  registrarEvaluacionInquilinoGestion
+);
+
+router.patch(
+  '/gestion/solicitudes/:reserva_id/aprobar',
+  verificarToken,
+  autorizarRoles('ADMIN'),
+  aprobarSolicitudReserva
+);
+
+router.patch(
+  '/gestion/solicitudes/:reserva_id/rechazar',
+  verificarToken,
+  autorizarRoles('ADMIN'),
+  rechazarSolicitudReserva
+);
+
+/*
+  HU12 - Control de ocupación
+  ADMIN y SECRETARIO pueden confirmar check-in y check-out.
+*/
+router.patch(
+  '/gestion/solicitudes/:reserva_id/checkin',
+  verificarToken,
+  autorizarRoles('ADMIN', 'SECRETARIO'),
+  confirmarCheckinReserva
+);
+
+router.patch(
+  '/gestion/solicitudes/:reserva_id/checkout',
+  verificarToken,
+  autorizarRoles('ADMIN', 'SECRETARIO'),
+  confirmarCheckoutReserva
+);
 
 module.exports = router;

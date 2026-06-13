@@ -15,6 +15,7 @@ import GestionUnidad from './pages/GestionUnidad';
 import GestionMantenimiento from './pages/GestionMantenimiento';
 import GestionAdmin from './pages/GestionAdmin';
 import GestionDisponibilidad from './pages/GestionDisponibilidad';
+import RutaGestionReservas from './components/RutaGestionReservas';
 import RutaAdmin from './components/RutaAdmin';
 import BusquedaPage from './pages/BusquedaPage';
 import RestablecerPassword from './pages/RestablecerPassword';
@@ -34,19 +35,74 @@ function App() {
         <Route path='/RecuperarPassword' element={<RecuperarPassword />} />
         <Route path='/RestablecerPassword' element={<RestablecerPassword />} />
 
-        <Route path='/GestionHome' element={<GestionHome />} />
+        <Route
+            path="/GestionHome"
+            element={
+                <RutaAdmin>
+                    <GestionHome />
+                </RutaAdmin>
+            }
+        />
         <Route path='/GestionPerfil' element={<GestionPerfil />} />
-        <Route path='/GestionEdificio' element={<GestionEdificio />} />
-        <Route path='/GestionUnidad' element={<GestionUnidad />} />
-        <Route path='/GestionMantenimiento' element={<GestionMantenimiento />} />
-        <Route path='/GestionAdmin' element={<RutaAdmin><GestionAdmin /></RutaAdmin>}/>
-        <Route path="/GestionDisponibilidad" element={<GestionDisponibilidad />} 
+        <Route
+            path="/GestionEdificio"
+            element={
+                <RutaAdmin>
+                    <GestionEdificio />
+                </RutaAdmin>
+            }
+        />
+        <Route
+            path="/GestionUnidad"
+            element={
+                <RutaAdmin>
+                    <GestionUnidad />
+                </RutaAdmin>
+            }
+        />
+        <Route
+            path="/GestionMantenimiento"
+            element={
+                <RutaAdmin>
+                    <GestionMantenimiento />
+                </RutaAdmin>
+            }
+        />
+        <Route
+            path="/GestionAdmin"
+            element={
+                <RutaAdmin>
+                    <GestionAdmin />
+                </RutaAdmin>
+            }
+        />
+        <Route
+            path="/GestionDisponibilidad"
+            element={
+                <RutaAdmin>
+                    <GestionDisponibilidad />
+                </RutaAdmin>
+            }
         />
         <Route path="/Busqueda" element={<BusquedaPage />} />
 
-        <Route path="/GestionPublicacion" element={<GestionPublicacion />} />
+        <Route
+            path="/GestionPublicacion"
+            element={
+                <RutaAdmin>
+                    <GestionPublicacion />
+                </RutaAdmin>
+            }
+        />
         <Route path="/MisSolicitudesReserva" element={<MisSolicitudesReserva />} />
-        <Route path="/GestionSolicitudesReserva" element={<GestionSolicitudesReserva />}/>
+        <Route
+            path="/GestionSolicitudesReserva"
+            element={
+                <RutaGestionReservas>
+                    <GestionSolicitudesReserva />
+                </RutaGestionReservas>
+            }
+        />
       </Routes>
     </BrowserRouter>
   );

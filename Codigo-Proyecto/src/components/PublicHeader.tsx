@@ -48,7 +48,21 @@ function PublicHeader({
         return usuarioSesion.correo.charAt(0).toUpperCase();
     };
 
-    const esAdmin = usuarioSesion?.roles?.includes('ADMIN');
+    const roles: string[] = Array.isArray(usuarioSesion?.roles)
+        ? usuarioSesion.roles
+        : [];
+
+    const esCliente = roles.includes('CLIENTE');
+    const esSecretario = roles.includes('SECRETARIO');
+    const esAdmin = roles.includes('ADMIN');
+
+    const puedeEntrarGestion = esAdmin || esSecretario;
+
+    const textoRol = esAdmin
+        ? 'Administrador'
+        : esSecretario
+            ? 'Secretario'
+            : 'Usuario';
 
     return (
         <header className="main-header">
@@ -78,12 +92,14 @@ function PublicHeader({
                     </button>
                 )}
 
-                <Link
-                    to={usuarioSesion ? '/GestionEdificio' : '/Login'}
-                    className="btn btn-light"
-                >
-                    Publica tu inmueble
-                </Link>
+                {(!usuarioSesion || esAdmin) && (
+                    <Link
+                        to={esAdmin ? '/GestionEdificio' : '/Login'}
+                        className="btn btn-light"
+                    >
+                        Publica tu inmueble
+                    </Link>
+                )}
 
                 {!usuarioSesion && (
                     <>
@@ -122,7 +138,7 @@ function PublicHeader({
 
                                     <div>
                                         <strong>{usuarioSesion.correo}</strong>
-                                        <p>{esAdmin ? 'Administrador' : 'Usuario'}</p>
+                                        <p>{textoRol}</p>
                                     </div>
                                 </div>
 
@@ -139,27 +155,38 @@ function PublicHeader({
                                     Mi perfil público
                                 </button>
 
-                                <button
-                                    type="button"
-                                    className="user-dropdown-item"
-                                    onClick={() => {
-                                        setMenuAbierto(false);
-                                        navigate('/MisSolicitudesReserva');
-                                    }}
-                                >
-                                    Mis reservas
-                                </button>
+                                {esCliente && (
+                                    <button
+                                        type="button"
+                                        className="user-dropdown-item"
+                                        onClick={() => {
+                                            setMenuAbierto(false);
+                                            navigate('/MisSolicitudesReserva');
+                                        }}
+                                    >
+                                        Mis reservas
+                                    </button>
+                                )}
 
-                                <button
-                                    type="button"
-                                    className="user-dropdown-item"
-                                    onClick={() => {
-                                        setMenuAbierto(false);
-                                        navigate('/GestionHome');
-                                    }}
-                                >
-                                    Panel de gestión
-                                </button>
+                                {puedeEntrarGestion && (
+                                    <button
+                                        type="button"
+                                        className="user-dropdown-item"
+                                        onClick={() => {
+                                            setMenuAbierto(false);
+
+                                            navigate(
+                                                esAdmin
+                                                    ? '/GestionHome'
+                                                    : '/GestionSolicitudesReserva'
+                                            );
+                                        }}
+                                    >
+                                        {esAdmin
+                                            ? 'Panel de gestión'
+                                            : 'Control de ocupación'}
+                                    </button>
+                                )}
 
                                 {esAdmin && (
                                     <button
