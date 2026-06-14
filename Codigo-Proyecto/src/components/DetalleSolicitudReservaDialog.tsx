@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     obtenerDetalleMiSolicitud,
     type SolicitudReserva,
-    type EventoReserva
+    type EventoReserva,
+    type SolicitudExtension
 } from '../services/reservaService';
+import SolicitudExtensionDialog from './SolicitudExtensionDialog';
+
 
 interface DetalleSolicitudReservaDialogProps {
     abierto: boolean;
@@ -18,8 +21,11 @@ function DetalleSolicitudReservaDialog({
 }: DetalleSolicitudReservaDialogProps) {
     const [solicitud, setSolicitud] = useState<SolicitudReserva | null>(null);
     const [eventos, setEventos] = useState<EventoReserva[]>([]);
+    const [extensionPendiente, setExtensionPendiente] =
+    useState<SolicitudExtension | null>(null);
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
+    const [mostrarSolicitudExtension, setMostrarSolicitudExtension] = useState(false);
 
     const formatearFecha = (fecha?: string | null) => {
         if (!fecha) return 'No especificada';
@@ -56,14 +62,20 @@ function DetalleSolicitudReservaDialog({
                 return 'Pendiente de revisión';
             case 'APROBADA':
                 return 'Aprobada';
+            case 'ACTIVA':
+                return 'Estadía activa';
+            case 'FINALIZADA':
+                return 'Finalizada';
             case 'RECHAZADA':
                 return 'Rechazada';
             case 'CANCELADA':
                 return 'Cancelada';
+            case 'EXPIRADA':
+                return 'Expirada';
             default:
                 return estado || 'No especificado';
-        }
-    };
+            }
+        };
 
     const obtenerTextoEvento = (tipo: string) => {
         switch (tipo) {
@@ -73,43 +85,57 @@ function DetalleSolicitudReservaDialog({
                 return 'Solicitud aprobada';
             case 'RECHAZO':
                 return 'Solicitud rechazada';
+            case 'CHECKIN':
+                return 'Check-in confirmado';
+            case 'CHECKOUT':
+                return 'Check-out confirmado';
+            case 'EXTENSION':
+                return 'Extensión solicitada';
             case 'CANCELACION':
                 return 'Solicitud cancelada';
+            case 'NOTA':
+                return 'Nota de gestión';
             default:
                 return tipo;
         }
     };
 
-    useEffect(() => {
-        const cargarDetalle = async () => {
-            if (!abierto || !reservaId) return;
+    const cargarDetalle = useCallback(async () => {
+        if (!abierto || !reservaId) return;
 
-            try {
-                setCargando(true);
-                setError('');
+        try {
+            setCargando(true);
+            setError('');
 
-                const response = await obtenerDetalleMiSolicitud(reservaId);
+            const response =
+                await obtenerDetalleMiSolicitud(reservaId);
 
-                setSolicitud(response.solicitud);
-                setEventos(response.eventos || []);
-            } catch (err) {
-                const mensajeError =
-                    err instanceof Error
-                        ? err.message
-                        : 'Error al cargar el detalle de la solicitud.';
+            setSolicitud(response.solicitud);
+            setEventos(response.eventos || []);
+            setExtensionPendiente(
+                response.solicitud_extension_pendiente || null
+            );
+        } catch (err) {
+            const mensajeError =
+                err instanceof Error
+                    ? err.message
+                    : 'Error al cargar el detalle de la solicitud.';
 
-                setError(mensajeError);
-            } finally {
-                setCargando(false);
-            }
-        };
-
-        cargarDetalle();
+            setError(mensajeError);
+        } finally {
+            setCargando(false);
+        }
     }, [abierto, reservaId]);
+
+    useEffect(() => {
+        void cargarDetalle();
+    }, [cargarDetalle]);
 
     const cerrar = () => {
         setSolicitud(null);
         setEventos([]);
+        setExtensionPendiente(null);
+        setMostrarSolicitudExtension(false)
         setError('');
         onCerrar();
     };
@@ -117,6 +143,13 @@ function DetalleSolicitudReservaDialog({
     if (!abierto) {
         return null;
     }
+
+    const puedeSolicitarExtension =
+    solicitud !== null &&
+    ['APROBADA', 'ACTIVA'].includes(
+        solicitud.estado_reserva
+    ) &&
+    !extensionPendiente;
 
     return (
         <div className="detalle-solicitud-overlay">
@@ -240,6 +273,34 @@ function DetalleSolicitudReservaDialog({
                             </section>
                         )}
 
+                        {/* HU13 - Acciones de extensión */}
+                        {puedeSolicitarExtension && (
+                            <div className="extension-dialog-actions">
+                                <button
+                                    type="button"
+                                    className="extension-button-primary"
+                                    onClick={() =>
+                                        setMostrarSolicitudExtension(true)
+                                    }
+                                >
+                                    Solicitar extensión
+                                </button>
+                            </div>
+                        )}
+
+                        {/* HU13 - Aviso de solicitud pendiente */}
+                        {extensionPendiente && (
+                            <div className="extension-alert extension-alert-warning">
+                                Tienes una solicitud de extensión pendiente hasta el{' '}
+                                <strong>
+                                    {formatearFecha(
+                                        extensionPendiente.nueva_fecha_fin
+                                    )}
+                                </strong>
+                                .
+                            </div>
+                        )}
+
                         <section className="detalle-solicitud-card">
                             <h3>Historial</h3>
 
@@ -273,11 +334,21 @@ function DetalleSolicitudReservaDialog({
                                 </div>
                             )}
                         </section>
-                    </>
+                    </>     
                 )}
+                <SolicitudExtensionDialog
+                    abierto={mostrarSolicitudExtension}
+                    solicitud={solicitud}
+                    extensionPendiente={extensionPendiente}
+                    onCerrar={() =>
+                        setMostrarSolicitudExtension(false)
+                    }
+                    onRegistrada={async () => {
+                        await cargarDetalle();
+                    }}
+                />
             </div>
         </div>
     );
 }
-
 export default DetalleSolicitudReservaDialog;

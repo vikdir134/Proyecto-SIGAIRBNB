@@ -16,7 +16,14 @@ const {
   listarEvaluacionesInquilinoReservaGestion,
   registrarEvaluacionConEventoReservaGestion,
   confirmarCheckinReservaGestion,
-  confirmarCheckoutReservaGestion
+  confirmarCheckoutReservaGestion,
+  obtenerReservaExtensibleInquilinoPorId,
+  obtenerSolicitudExtensionPendientePorReserva,
+  buscarConflictosExtensionReserva,
+  crearSolicitudExtensionReserva,
+  obtenerExtensionPendienteReservaGestion,
+  aprobarSolicitudExtensionReservaGestion,
+  rechazarSolicitudExtensionReservaGestion
 } = require('../models/reserva.model');
 
 const limpiarTexto = (valor) => {
@@ -36,6 +43,24 @@ const validarFechaYYYYMMDD = (fecha) => {
   const fechaDate = new Date(`${fecha}T00:00:00`);
 
   return !Number.isNaN(fechaDate.getTime());
+};
+
+// HU13 -HELPER- Convierte fechas de SQL Server al formato YYYY-MM-DD
+const convertirFechaAYYYYMMDD = (valor) => {
+  if (!valor) return null;
+
+  if (valor instanceof Date) {
+    const anio = valor.getFullYear();
+    const mes = String(valor.getMonth() + 1).padStart(2, '0');
+    const dia = String(valor.getDate()).padStart(2, '0');
+
+    return `${anio}-${mes}-${dia}`;
+  }
+
+  const texto = String(valor);
+  const coincidencia = texto.match(/^\d{4}-\d{2}-\d{2}/);
+
+  return coincidencia ? coincidencia[0] : null;
 };
 
 const construirEstadoVettingSolicitud = (solicitud) => {
@@ -809,6 +834,11 @@ const obtenerEventosReservaGestion = async (req, res) => {
       reservaIdNumero
     );
 
+    const solicitudExtensionPendiente =await obtenerExtensionPendienteReservaGestion(
+      usuarioPublicadorId,
+      reservaIdNumero
+    );
+
     return res.json({
       mensaje: 'Historial de eventos de la reserva obtenido correctamente',
       reserva: {
@@ -822,6 +852,9 @@ const obtenerEventosReservaGestion = async (req, res) => {
         nombre_inmueble: solicitud.nombre_inmueble,
         tipo_inmueble: solicitud.tipo_inmueble
       },
+
+      // HU13
+      solicitud_extension_pendiente: solicitudExtensionPendiente,
       total: eventos.length,
       eventos
     });
@@ -865,9 +898,14 @@ const obtenerDetalleMiSolicitudReserva = async (req, res) => {
       reservaIdNumero
     );
 
+    const solicitudExtensionPendiente = await obtenerSolicitudExtensionPendientePorReserva(
+    reservaIdNumero
+    );
+
     return res.json({
       mensaje: 'Detalle de solicitud de reserva obtenido correctamente',
       solicitud,
+      solicitudExtensionPendiente: solicitudExtensionPendiente,
       total_eventos: eventos.length,
       eventos
     });
@@ -1422,6 +1460,370 @@ const confirmarCheckoutReserva = async (req, res) => {
   }
 };
 
+const solicitarExtensionReserva = async (req, res) => {
+  try {
+    const inquilinoId = req.usuario.usuario_id;
+
+    const { reserva_id } = req.params;
+    const {
+      nueva_fecha_fin,
+      motivo
+    } = req.body;
+
+    const reservaIdNumero = Number(reserva_id);
+
+    if (
+      Number.isNaN(reservaIdNumero) ||
+      reservaIdNumero <= 0
+    ) {
+      return res.status(400).json({
+        mensaje: 'El ID de la reserva no es válido'
+      });
+    }
+
+    if (!validarFechaYYYYMMDD(nueva_fecha_fin)) {
+      return res.status(400).json({
+        mensaje: 'La nueva fecha de finalización debe tener formato YYYY-MM-DD'
+      });
+    }
+
+    const motivoLimpio = limpiarTexto(motivo);
+
+    if (motivoLimpio.length > 500) {
+      return res.status(400).json({
+        mensaje: 'El motivo de la extensión no puede superar los 500 caracteres'
+      });
+    }
+
+    /*
+      Busca la reserva validando al mismo tiempo que:
+
+      - Pertenezca al usuario autenticado.
+      - Se encuentre APROBADA o ACTIVA.
+      - No tenga check-out confirmado.
+    */
+    const reserva = await obtenerReservaExtensibleInquilinoPorId(
+      inquilinoId,
+      reservaIdNumero
+    );
+
+    if (!reserva) {
+      return res.status(404).json({
+        mensaje:
+          'La reserva no existe, no pertenece a tu usuario o no se encuentra disponible para solicitar una extensión'
+      });
+    }
+
+    const fechaFinActual = convertirFechaAYYYYMMDD(
+      reserva.fecha_fin
+    );
+
+    if (!fechaFinActual) {
+      return res.status(500).json({
+        mensaje: 'No se pudo interpretar la fecha final actual de la reserva'
+      });
+    }
+
+    if (nueva_fecha_fin <= fechaFinActual) {
+      return res.status(400).json({
+        mensaje:
+          'La nueva fecha de finalización debe ser posterior a la fecha final actual',
+        fecha_fin_actual: fechaFinActual,
+        nueva_fecha_fin
+      });
+    }
+
+    /*
+      No permitimos que el inquilino tenga dos solicitudes
+      pendientes para la misma reserva.
+    */
+    const solicitudPendiente =
+      await obtenerSolicitudExtensionPendientePorReserva(
+        reservaIdNumero
+      );
+
+    if (solicitudPendiente) {
+      return res.status(409).json({
+        mensaje:
+          'Ya existe una solicitud de extensión pendiente para esta reserva',
+        solicitud_extension_pendiente: solicitudPendiente
+      });
+    }
+
+    /*
+      Se revisa solamente el periodo adicional:
+
+      fecha_fin_actual + 1 día
+      hasta nueva_fecha_fin
+    */
+    const conflictos = await buscarConflictosExtensionReserva({
+      empresa_id: reserva.empresa_id,
+      inmueble_id: reserva.inmueble_id,
+      reserva_id: reserva.reserva_id,
+      fecha_fin_actual: fechaFinActual,
+      nueva_fecha_fin
+    });
+
+    if (
+      conflictos.bloqueos.length > 0 ||
+      conflictos.reservas.length > 0
+    ) {
+      return res.status(409).json({
+        mensaje:
+          'No se puede solicitar la extensión porque el inmueble no está disponible durante todo el periodo adicional',
+        fecha_fin_actual: fechaFinActual,
+        nueva_fecha_fin,
+        bloqueos_solapados: conflictos.bloqueos,
+        reservas_solapadas: conflictos.reservas
+      });
+    }
+
+    const resultado = await crearSolicitudExtensionReserva({
+      reserva_id: reservaIdNumero,
+      solicitante_usuario_id: inquilinoId,
+      nueva_fecha_fin,
+      motivo: motivoLimpio || null
+    });
+
+    /*
+      Puede devolver null si la reserva cambió de estado o si otra
+      solicitud pendiente fue registrada simultáneamente.
+    */
+    if (!resultado) {
+      return res.status(409).json({
+        mensaje:
+          'No se pudo registrar la solicitud de extensión. Verifica que la reserva siga activa o aprobada y que no exista otra solicitud pendiente'
+      });
+    }
+
+    return res.status(201).json({
+      mensaje: 'Solicitud de extensión enviada correctamente',
+      reserva: {
+        reserva_id: reserva.reserva_id,
+        inmueble_id: reserva.inmueble_id,
+        estado_reserva: reserva.estado_reserva,
+        fecha_inicio: reserva.fecha_inicio,
+        fecha_fin_actual: fechaFinActual,
+        codigo_inmueble: reserva.codigo_inmueble,
+        nombre_inmueble: reserva.nombre_inmueble,
+        titulo_publicacion: reserva.titulo_publicacion
+      },
+      solicitud_extension: resultado.solicitud_extension,
+      evento: resultado.evento
+    });
+
+  } catch (error) {
+    console.error(
+      'Error al solicitar extensión de reserva:',
+      error
+    );
+
+    return res.status(500).json({
+      mensaje:
+        'Error interno al solicitar la extensión de la reserva',
+      error: error.message
+    });
+  }
+};
+
+const aprobarSolicitudExtension = async (req, res) => {
+  try {
+    const gestorId = req.usuario.usuario_id;
+    const { solicitud_extension_id } = req.params;
+    const { comentario_decision } = req.body;
+
+    const solicitudExtensionIdNumero = Number(
+      solicitud_extension_id
+    );
+
+    if (
+      Number.isNaN(solicitudExtensionIdNumero) ||
+      solicitudExtensionIdNumero <= 0
+    ) {
+      return res.status(400).json({
+        mensaje:
+          'El ID de la solicitud de extensión no es válido'
+      });
+    }
+
+    const comentarioLimpio = limpiarTexto(
+      comentario_decision
+    );
+
+    if (comentarioLimpio.length > 500) {
+      return res.status(400).json({
+        mensaje:
+          'El comentario de decisión no puede superar los 500 caracteres'
+      });
+    }
+
+    const resultado =
+      await aprobarSolicitudExtensionReservaGestion({
+        usuario_gestor_id: gestorId,
+        solicitud_extension_id:
+          solicitudExtensionIdNumero,
+        comentario_decision:
+          comentarioLimpio || null
+      });
+
+    if (!resultado) {
+      return res.status(500).json({
+        mensaje:
+          'No se obtuvo una respuesta al aprobar la extensión'
+      });
+    }
+
+    if (resultado.codigo === 'NO_DISPONIBLE') {
+      return res.status(404).json({
+        mensaje:
+          'La solicitud de extensión no existe, no pertenece a tus inmuebles o ya no está pendiente'
+      });
+    }
+
+    if (resultado.codigo === 'FECHA_INVALIDA') {
+      return res.status(400).json({
+        mensaje:
+          'La nueva fecha de finalización no es válida',
+        fecha_fin_actual:
+          resultado.fecha_fin_actual,
+        nueva_fecha_fin:
+          resultado.nueva_fecha_fin
+      });
+    }
+
+    if (
+      resultado.codigo ===
+      'CONFLICTO_DISPONIBILIDAD'
+    ) {
+      return res.status(409).json({
+        mensaje:
+          'No se puede aprobar la extensión porque el inmueble ya no está disponible durante todo el periodo adicional',
+        bloqueos_solapados:
+          resultado.bloqueos || [],
+        reservas_solapadas:
+          resultado.reservas || []
+      });
+    }
+
+    if (
+      resultado.codigo ===
+      'RESERVA_NO_ACTUALIZADA'
+    ) {
+      return res.status(409).json({
+        mensaje:
+          'La solicitud fue encontrada, pero la reserva ya no puede ser extendida'
+      });
+    }
+
+    if (resultado.codigo !== 'OK') {
+      return res.status(400).json({
+        mensaje:
+          'No se pudo aprobar la solicitud de extensión'
+      });
+    }
+
+    return res.json({
+      mensaje:
+        'Solicitud de extensión aprobada correctamente',
+      solicitud_extension:
+        resultado.solicitud_extension,
+      reserva: resultado.reserva,
+      evento: resultado.evento
+    });
+
+  } catch (error) {
+    console.error(
+      'Error al aprobar solicitud de extensión:',
+      error
+    );
+
+    return res.status(500).json({
+      mensaje:
+        'Error interno al aprobar la solicitud de extensión',
+      error: error.message
+    });
+  }
+};
+
+const rechazarSolicitudExtension = async (
+  req,
+  res
+) => {
+  try {
+    const gestorId = req.usuario.usuario_id;
+    const { solicitud_extension_id } = req.params;
+    const { comentario_decision } = req.body;
+
+    const solicitudExtensionIdNumero = Number(
+      solicitud_extension_id
+    );
+
+    if (
+      Number.isNaN(solicitudExtensionIdNumero) ||
+      solicitudExtensionIdNumero <= 0
+    ) {
+      return res.status(400).json({
+        mensaje:
+          'El ID de la solicitud de extensión no es válido'
+      });
+    }
+
+    const comentarioLimpio = limpiarTexto(
+      comentario_decision
+    );
+
+    if (!comentarioLimpio) {
+      return res.status(400).json({
+        mensaje:
+          'Debes ingresar el motivo del rechazo'
+      });
+    }
+
+    if (comentarioLimpio.length > 500) {
+      return res.status(400).json({
+        mensaje:
+          'El motivo del rechazo no puede superar los 500 caracteres'
+      });
+    }
+
+    const resultado =
+      await rechazarSolicitudExtensionReservaGestion({
+        usuario_gestor_id: gestorId,
+        solicitud_extension_id:
+          solicitudExtensionIdNumero,
+        comentario_decision:
+          comentarioLimpio
+      });
+
+    if (!resultado) {
+      return res.status(404).json({
+        mensaje:
+          'La solicitud de extensión no existe, no pertenece a tus inmuebles o ya no está pendiente'
+      });
+    }
+
+    return res.json({
+      mensaje:
+        'Solicitud de extensión rechazada correctamente',
+      solicitud_extension:
+        resultado.solicitud_extension,
+      evento: resultado.evento
+    });
+
+  } catch (error) {
+    console.error(
+      'Error al rechazar solicitud de extensión:',
+      error
+    );
+
+    return res.status(500).json({
+      mensaje:
+        'Error interno al rechazar la solicitud de extensión',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   solicitarReserva,
   obtenerMisSolicitudesReserva,
@@ -1435,5 +1837,8 @@ module.exports = {
   obtenerEvaluacionesInquilinoGestion,
   obtenerResumenVettingGestion,
   confirmarCheckinReserva,
- confirmarCheckoutReserva
+  confirmarCheckoutReserva,
+  solicitarExtensionReserva,
+  aprobarSolicitudExtension,
+  rechazarSolicitudExtension
 };

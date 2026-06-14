@@ -14,7 +14,10 @@ const {
   obtenerEvaluacionesInquilinoGestion,
   obtenerResumenVettingGestion,
   confirmarCheckinReserva,
-  confirmarCheckoutReserva
+  confirmarCheckoutReserva,
+  solicitarExtensionReserva,
+  aprobarSolicitudExtension,
+  rechazarSolicitudExtension
 } = require('../controllers/reserva.controller');
 
 const {
@@ -125,4 +128,33 @@ router.patch(
   confirmarCheckoutReserva
 );
 
+/*
+  HU13 - Solicitud de Extensión
+  El inquilino autenticado solicita ampliar la fecha final
+  de una reserva aprobada o activa.
+*/
+router.post(
+  '/mis-solicitudes/:reserva_id/extensiones',
+  verificarToken,
+  solicitarExtensionReserva
+);
+
+/*
+   Aprobar solicitud de extensión
+  Disponible para el publicador o secretario asignado.
+*/
+router.put(
+  '/gestion/extensiones/:solicitud_extension_id/aprobar',
+  verificarToken,
+  aprobarSolicitudExtension
+);
+
+/*
+   Rechazar solicitud de extensión
+*/
+router.put(
+  '/gestion/extensiones/:solicitud_extension_id/rechazar',
+  verificarToken,
+  rechazarSolicitudExtension
+);
 module.exports = router;

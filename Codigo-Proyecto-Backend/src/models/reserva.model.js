@@ -1494,6 +1494,969 @@ const confirmarCheckoutReservaGestion = async ({
   }
 };
 
+const obtenerReservaExtensibleInquilinoPorId = async (
+  inquilino_id,
+  reserva_id
+) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('inquilino_id', sql.Int, inquilino_id)
+    .input('reserva_id', sql.Int, reserva_id)
+    .query(`
+      SELECT
+        r.reserva_id,
+        r.inmueble_id,
+        r.inquilino_id,
+        r.estado_reserva,
+        r.fecha_inicio,
+        r.fecha_fin,
+        r.fecha_checkin,
+        r.fecha_checkout,
+        r.renta_pactada_mensual,
+        r.moneda,
+
+        i.empresa_id,
+        i.codigo AS codigo_inmueble,
+        i.nombre AS nombre_inmueble,
+        i.tipo_inmueble,
+
+        p.publicacion_id,
+        p.titulo AS titulo_publicacion
+      FROM booking.Reserva r
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      LEFT JOIN catalog.Publicacion p
+        ON p.inmueble_id = i.inmueble_id
+      WHERE r.reserva_id = @reserva_id
+        AND r.inquilino_id = @inquilino_id
+        AND r.estado_reserva IN ('APROBADA', 'ACTIVA')
+        AND r.fecha_checkout IS NULL
+        AND i.activo = 1
+        AND i.deleted_at IS NULL;
+    `);
+
+  return result.recordset[0] || null;
+};
+
+const obtenerSolicitudExtensionPendientePorReserva = async (
+  reserva_id
+) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('reserva_id', sql.Int, reserva_id)
+    .query(`
+      SELECT TOP 1
+        solicitud_extension_id,
+        reserva_id,
+        solicitante_usuario_id,
+        nueva_fecha_fin,
+        motivo,
+        estado,
+        fecha_solicitud,
+        fecha_decision,
+        decidido_por_usuario_id,
+        comentario_decision
+      FROM booking.SolicitudExtension
+      WHERE reserva_id = @reserva_id
+        AND estado = 'PENDIENTE'
+      ORDER BY fecha_solicitud DESC;
+    `);
+
+  return result.recordset[0] || null;
+};
+
+const buscarConflictosExtensionReserva = async ({
+  empresa_id,
+  inmueble_id,
+  reserva_id,
+  fecha_fin_actual,
+  nueva_fecha_fin
+}) => {
+  const pool = await getConnection();
+
+  /*
+    Debido a que las validaciones actuales del proyecto consideran
+    los rangos como inclusivos, el periodo adicional comienza al día
+    siguiente de la fecha final vigente.
+  */
+  const bloqueosResult = await pool.request()
+    .input('empresa_id', sql.Int, empresa_id)
+    .input('inmueble_id', sql.Int, inmueble_id)
+    .input('fecha_fin_actual', sql.Date, fecha_fin_actual)
+    .input('nueva_fecha_fin', sql.Date, nueva_fecha_fin)
+    .query(`
+      SELECT
+        b.bloqueo_disponibilidad_id,
+        b.inmueble_id,
+        b.fecha_inicio,
+        b.fecha_fin,
+        b.motivo,
+        b.origen
+      FROM catalog.BloqueoDisponibilidad b
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = b.inmueble_id
+      WHERE b.inmueble_id = @inmueble_id
+        AND i.empresa_id = @empresa_id
+        AND b.activo = 1
+        AND i.activo = 1
+        AND i.deleted_at IS NULL
+        AND (
+          DATEADD(DAY, 1, @fecha_fin_actual) <= b.fecha_fin
+          AND @nueva_fecha_fin >= b.fecha_inicio
+        );
+    `);
+
+  const reservasResult = await pool.request()
+    .input('empresa_id', sql.Int, empresa_id)
+    .input('inmueble_id', sql.Int, inmueble_id)
+    .input('reserva_id', sql.Int, reserva_id)
+    .input('fecha_fin_actual', sql.Date, fecha_fin_actual)
+    .input('nueva_fecha_fin', sql.Date, nueva_fecha_fin)
+    .query(`
+      SELECT
+        r.reserva_id,
+        r.inmueble_id,
+        r.inquilino_id,
+        r.estado_reserva,
+        r.fecha_inicio,
+        r.fecha_fin
+      FROM booking.Reserva r
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      WHERE r.inmueble_id = @inmueble_id
+        AND r.reserva_id <> @reserva_id
+        AND i.empresa_id = @empresa_id
+        AND i.activo = 1
+        AND i.deleted_at IS NULL
+        AND r.estado_reserva IN ('APROBADA', 'ACTIVA')
+        AND (
+          DATEADD(DAY, 1, @fecha_fin_actual) <= r.fecha_fin
+          AND @nueva_fecha_fin >= r.fecha_inicio
+        );
+    `);
+
+  return {
+    bloqueos: bloqueosResult.recordset,
+    reservas: reservasResult.recordset
+  };
+};
+
+const crearSolicitudExtensionReserva = async ({
+  reserva_id,
+  solicitante_usuario_id,
+  nueva_fecha_fin,
+  motivo
+}) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    /*
+      SERIALIZABLE evita que se registren dos solicitudes pendientes
+      simultáneamente para la misma reserva.
+    */
+    await transaction.begin(sql.ISOLATION_LEVEL.SERIALIZABLE);
+
+    const requestExtension = new sql.Request(transaction);
+
+    const extensionResult = await requestExtension
+      .input('reserva_id', sql.Int, reserva_id)
+      .input(
+        'solicitante_usuario_id',
+        sql.Int,
+        solicitante_usuario_id
+      )
+      .input('nueva_fecha_fin', sql.Date, nueva_fecha_fin)
+      .input(
+        'motivo',
+        sql.NVarChar(500),
+        motivo || null
+      )
+      .query(`
+        INSERT INTO booking.SolicitudExtension (
+          reserva_id,
+          solicitante_usuario_id,
+          nueva_fecha_fin,
+          motivo,
+          estado
+        )
+        OUTPUT
+          INSERTED.solicitud_extension_id,
+          INSERTED.reserva_id,
+          INSERTED.solicitante_usuario_id,
+          INSERTED.nueva_fecha_fin,
+          INSERTED.motivo,
+          INSERTED.estado,
+          INSERTED.fecha_solicitud,
+          INSERTED.fecha_decision,
+          INSERTED.decidido_por_usuario_id,
+          INSERTED.comentario_decision
+        SELECT
+          r.reserva_id,
+          @solicitante_usuario_id,
+          @nueva_fecha_fin,
+          @motivo,
+          'PENDIENTE'
+        FROM booking.Reserva r
+        WHERE r.reserva_id = @reserva_id
+          AND r.inquilino_id = @solicitante_usuario_id
+          AND r.estado_reserva IN ('APROBADA', 'ACTIVA')
+          AND r.fecha_checkout IS NULL
+          AND @nueva_fecha_fin > r.fecha_fin
+          AND NOT EXISTS (
+            SELECT 1
+            FROM booking.SolicitudExtension se
+            WHERE se.reserva_id = r.reserva_id
+              AND se.estado = 'PENDIENTE'
+          );
+      `);
+
+    const solicitudExtension = extensionResult.recordset[0];
+
+    if (!solicitudExtension) {
+      await transaction.rollback();
+      return null;
+    }
+
+    const requestEvento = new sql.Request(transaction);
+
+    const eventoResult = await requestEvento
+      .input(
+        'reserva_id',
+        sql.Int,
+        solicitudExtension.reserva_id
+      )
+      .input(
+        'usuario_id',
+        sql.Int,
+        solicitante_usuario_id
+      )
+      .input(
+        'tipo_evento',
+        sql.NVarChar(30),
+        'EXTENSION'
+      )
+      .input(
+        'descripcion',
+        sql.NVarChar(500),
+        'El inquilino envió una solicitud de extensión de la reserva.'
+      )
+      .query(`
+        INSERT INTO booking.ReservaEvento (
+          reserva_id,
+          usuario_id,
+          tipo_evento,
+          descripcion
+        )
+        OUTPUT
+          INSERTED.reserva_evento_id,
+          INSERTED.reserva_id,
+          INSERTED.usuario_id,
+          INSERTED.tipo_evento,
+          INSERTED.descripcion,
+          INSERTED.fecha_evento
+        VALUES (
+          @reserva_id,
+          @usuario_id,
+          @tipo_evento,
+          @descripcion
+        );
+      `);
+
+    await transaction.commit();
+
+    return {
+      solicitud_extension: solicitudExtension,
+      evento: eventoResult.recordset[0]
+    };
+
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error(
+        'Error al revertir la solicitud de extensión:',
+        rollbackError
+      );
+    }
+
+    throw error;
+  }
+};
+
+const obtenerExtensionPendienteReservaGestion = async (
+  usuario_gestor_id,
+  reserva_id
+) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('usuario_gestor_id', sql.Int, usuario_gestor_id)
+    .input('reserva_id', sql.Int, reserva_id)
+    .query(`
+      SELECT TOP 1
+        se.solicitud_extension_id,
+        se.reserva_id,
+        se.solicitante_usuario_id,
+        se.nueva_fecha_fin,
+        se.motivo,
+        se.estado,
+        se.fecha_solicitud,
+        se.fecha_decision,
+        se.decidido_por_usuario_id,
+        se.comentario_decision,
+
+        r.fecha_inicio,
+        r.fecha_fin AS fecha_fin_actual,
+        r.estado_reserva,
+        r.inmueble_id,
+
+        i.codigo AS codigo_inmueble,
+        i.nombre AS nombre_inmueble,
+
+        pu.nombres AS nombres_inquilino,
+        pu.apellidos AS apellidos_inquilino,
+        u.correo AS correo_inquilino
+
+      FROM booking.SolicitudExtension se
+      INNER JOIN booking.Reserva r
+        ON r.reserva_id = se.reserva_id
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      INNER JOIN catalog.Publicacion p
+        ON p.inmueble_id = i.inmueble_id
+      INNER JOIN auth.Usuario u
+        ON u.usuario_id = r.inquilino_id
+      LEFT JOIN core.PerfilUsuario pu
+        ON pu.usuario_id = r.inquilino_id
+
+      WHERE se.reserva_id = @reserva_id
+        AND se.estado = 'PENDIENTE'
+        AND (
+          p.publicado_por_usuario_id = @usuario_gestor_id
+
+          OR EXISTS (
+            SELECT 1
+            FROM core.EmpresaSecretario es
+            WHERE es.empresa_id = i.empresa_id
+              AND es.secretario_usuario_id = @usuario_gestor_id
+              AND es.activo = 1
+          )
+        )
+        AND i.activo = 1
+        AND i.deleted_at IS NULL
+
+      ORDER BY se.fecha_solicitud DESC;
+    `);
+
+  return result.recordset[0] || null;
+};
+
+const aprobarSolicitudExtensionReservaGestion = async ({
+  usuario_gestor_id,
+  solicitud_extension_id,
+  comentario_decision
+}) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin(
+      sql.ISOLATION_LEVEL.SERIALIZABLE
+    );
+
+    /*
+      Se bloquea la solicitud durante la operación para evitar
+      que dos gestores intenten aprobarla simultáneamente.
+    */
+    const detalleResult = await new sql.Request(transaction)
+      .input(
+        'usuario_gestor_id',
+        sql.Int,
+        usuario_gestor_id
+      )
+      .input(
+        'solicitud_extension_id',
+        sql.Int,
+        solicitud_extension_id
+      )
+      .query(`
+        SELECT TOP 1
+          se.solicitud_extension_id,
+          se.reserva_id,
+          se.solicitante_usuario_id,
+          se.nueva_fecha_fin,
+          se.motivo,
+          se.estado,
+          se.fecha_solicitud,
+
+          r.inmueble_id,
+          r.inquilino_id,
+          r.estado_reserva,
+          r.fecha_inicio,
+          r.fecha_fin AS fecha_fin_actual,
+          r.fecha_checkout,
+
+          i.empresa_id,
+          i.codigo AS codigo_inmueble,
+          i.nombre AS nombre_inmueble
+
+        FROM booking.SolicitudExtension se
+          WITH (UPDLOCK, HOLDLOCK)
+
+        INNER JOIN booking.Reserva r
+          ON r.reserva_id = se.reserva_id
+
+        INNER JOIN catalog.Inmueble i
+          ON i.inmueble_id = r.inmueble_id
+
+        INNER JOIN catalog.Publicacion p
+          ON p.inmueble_id = i.inmueble_id
+
+        WHERE
+          se.solicitud_extension_id =
+            @solicitud_extension_id
+
+          AND se.estado = 'PENDIENTE'
+
+          AND r.estado_reserva IN (
+            'APROBADA',
+            'ACTIVA'
+          )
+
+          AND r.fecha_checkout IS NULL
+
+          AND (
+            p.publicado_por_usuario_id =
+              @usuario_gestor_id
+
+            OR EXISTS (
+              SELECT 1
+              FROM core.EmpresaSecretario es
+              WHERE es.empresa_id = i.empresa_id
+                AND es.secretario_usuario_id =
+                  @usuario_gestor_id
+                AND es.activo = 1
+            )
+          )
+
+          AND i.activo = 1
+          AND i.deleted_at IS NULL;
+      `);
+
+    const detalle = detalleResult.recordset[0];
+
+    if (!detalle) {
+      await transaction.rollback();
+
+      return {
+        codigo: 'NO_DISPONIBLE'
+      };
+    }
+
+    const fechaFinActual = new Date(
+      detalle.fecha_fin_actual
+    );
+
+    const nuevaFechaFin = new Date(
+      detalle.nueva_fecha_fin
+    );
+
+    if (
+      Number.isNaN(fechaFinActual.getTime()) ||
+      Number.isNaN(nuevaFechaFin.getTime()) ||
+      nuevaFechaFin <= fechaFinActual
+    ) {
+      await transaction.rollback();
+
+      return {
+        codigo: 'FECHA_INVALIDA',
+        fecha_fin_actual:
+          detalle.fecha_fin_actual,
+        nueva_fecha_fin:
+          detalle.nueva_fecha_fin
+      };
+    }
+
+    /*
+      Antes de aprobar se vuelve a revisar la disponibilidad.
+      Puede haber aparecido una reserva o bloqueo después de
+      que el inquilino envió su solicitud.
+    */
+    const bloqueosResult =
+      await new sql.Request(transaction)
+        .input(
+          'empresa_id',
+          sql.Int,
+          detalle.empresa_id
+        )
+        .input(
+          'inmueble_id',
+          sql.Int,
+          detalle.inmueble_id
+        )
+        .input(
+          'fecha_fin_actual',
+          sql.Date,
+          detalle.fecha_fin_actual
+        )
+        .input(
+          'nueva_fecha_fin',
+          sql.Date,
+          detalle.nueva_fecha_fin
+        )
+        .query(`
+          SELECT
+            b.bloqueo_disponibilidad_id,
+            b.fecha_inicio,
+            b.fecha_fin,
+            b.motivo,
+            b.origen
+          FROM catalog.BloqueoDisponibilidad b
+          INNER JOIN catalog.Inmueble i
+            ON i.inmueble_id = b.inmueble_id
+          WHERE b.inmueble_id = @inmueble_id
+            AND i.empresa_id = @empresa_id
+            AND b.activo = 1
+            AND i.activo = 1
+            AND i.deleted_at IS NULL
+            AND (
+              DATEADD(
+                DAY,
+                1,
+                @fecha_fin_actual
+              ) <= b.fecha_fin
+
+              AND @nueva_fecha_fin >=
+                b.fecha_inicio
+            );
+        `);
+
+    const reservasResult =
+      await new sql.Request(transaction)
+        .input(
+          'empresa_id',
+          sql.Int,
+          detalle.empresa_id
+        )
+        .input(
+          'inmueble_id',
+          sql.Int,
+          detalle.inmueble_id
+        )
+        .input(
+          'reserva_id',
+          sql.Int,
+          detalle.reserva_id
+        )
+        .input(
+          'fecha_fin_actual',
+          sql.Date,
+          detalle.fecha_fin_actual
+        )
+        .input(
+          'nueva_fecha_fin',
+          sql.Date,
+          detalle.nueva_fecha_fin
+        )
+        .query(`
+          SELECT
+            r.reserva_id,
+            r.inquilino_id,
+            r.estado_reserva,
+            r.fecha_inicio,
+            r.fecha_fin
+          FROM booking.Reserva r
+          INNER JOIN catalog.Inmueble i
+            ON i.inmueble_id = r.inmueble_id
+          WHERE r.inmueble_id = @inmueble_id
+            AND r.reserva_id <> @reserva_id
+            AND i.empresa_id = @empresa_id
+            AND i.activo = 1
+            AND i.deleted_at IS NULL
+            AND r.estado_reserva IN (
+              'APROBADA',
+              'ACTIVA'
+            )
+            AND (
+              DATEADD(
+                DAY,
+                1,
+                @fecha_fin_actual
+              ) <= r.fecha_fin
+
+              AND @nueva_fecha_fin >=
+                r.fecha_inicio
+            );
+        `);
+
+    if (
+      bloqueosResult.recordset.length > 0 ||
+      reservasResult.recordset.length > 0
+    ) {
+      await transaction.rollback();
+
+      return {
+        codigo: 'CONFLICTO_DISPONIBILIDAD',
+        bloqueos: bloqueosResult.recordset,
+        reservas: reservasResult.recordset
+      };
+    }
+
+    const extensionResult =
+      await new sql.Request(transaction)
+        .input(
+          'solicitud_extension_id',
+          sql.Int,
+          solicitud_extension_id
+        )
+        .input(
+          'usuario_gestor_id',
+          sql.Int,
+          usuario_gestor_id
+        )
+        .input(
+          'comentario_decision',
+          sql.NVarChar(500),
+          comentario_decision || null
+        )
+        .query(`
+          UPDATE booking.SolicitudExtension
+          SET
+            estado = 'APROBADA',
+            fecha_decision = SYSDATETIME(),
+            decidido_por_usuario_id =
+              @usuario_gestor_id,
+            comentario_decision =
+              @comentario_decision
+          OUTPUT
+            INSERTED.solicitud_extension_id,
+            INSERTED.reserva_id,
+            INSERTED.solicitante_usuario_id,
+            INSERTED.nueva_fecha_fin,
+            INSERTED.motivo,
+            INSERTED.estado,
+            INSERTED.fecha_solicitud,
+            INSERTED.fecha_decision,
+            INSERTED.decidido_por_usuario_id,
+            INSERTED.comentario_decision
+          WHERE solicitud_extension_id =
+              @solicitud_extension_id
+            AND estado = 'PENDIENTE';
+        `);
+
+    const solicitudExtension =
+      extensionResult.recordset[0];
+
+    if (!solicitudExtension) {
+      await transaction.rollback();
+
+      return {
+        codigo: 'NO_DISPONIBLE'
+      };
+    }
+
+    const reservaResult =
+      await new sql.Request(transaction)
+        .input(
+          'reserva_id',
+          sql.Int,
+          detalle.reserva_id
+        )
+        .input(
+          'nueva_fecha_fin',
+          sql.Date,
+          detalle.nueva_fecha_fin
+        )
+        .query(`
+          UPDATE booking.Reserva
+          SET
+            fecha_fin = @nueva_fecha_fin,
+            updated_at = SYSDATETIME()
+          OUTPUT
+            INSERTED.reserva_id,
+            INSERTED.inmueble_id,
+            INSERTED.inquilino_id,
+            INSERTED.estado_reserva,
+            INSERTED.fecha_inicio,
+            INSERTED.fecha_fin,
+            INSERTED.updated_at
+          WHERE reserva_id = @reserva_id
+            AND estado_reserva IN (
+              'APROBADA',
+              'ACTIVA'
+            )
+            AND fecha_checkout IS NULL;
+        `);
+
+    const reservaActualizada =
+      reservaResult.recordset[0];
+
+    if (!reservaActualizada) {
+      await transaction.rollback();
+
+      return {
+        codigo: 'RESERVA_NO_ACTUALIZADA'
+      };
+    }
+
+    const fechaAnteriorTexto = String(
+      detalle.fecha_fin_actual instanceof Date
+        ? detalle.fecha_fin_actual
+            .toISOString()
+            .slice(0, 10)
+        : detalle.fecha_fin_actual
+    ).slice(0, 10);
+
+    const nuevaFechaTexto = String(
+      detalle.nueva_fecha_fin instanceof Date
+        ? detalle.nueva_fecha_fin
+            .toISOString()
+            .slice(0, 10)
+        : detalle.nueva_fecha_fin
+    ).slice(0, 10);
+
+    const descripcionEvento =
+      `La solicitud de extensión fue aprobada. ` +
+      `La fecha final cambió de ${fechaAnteriorTexto} ` +
+      `a ${nuevaFechaTexto}.`;
+
+    const eventoResult =
+      await new sql.Request(transaction)
+        .input(
+          'reserva_id',
+          sql.Int,
+          detalle.reserva_id
+        )
+        .input(
+          'usuario_id',
+          sql.Int,
+          usuario_gestor_id
+        )
+        .input(
+          'tipo_evento',
+          sql.NVarChar(30),
+          'EXTENSION'
+        )
+        .input(
+          'descripcion',
+          sql.NVarChar(500),
+          descripcionEvento
+        )
+        .query(`
+          INSERT INTO booking.ReservaEvento (
+            reserva_id,
+            usuario_id,
+            tipo_evento,
+            descripcion
+          )
+          OUTPUT
+            INSERTED.reserva_evento_id,
+            INSERTED.reserva_id,
+            INSERTED.usuario_id,
+            INSERTED.tipo_evento,
+            INSERTED.descripcion,
+            INSERTED.fecha_evento
+          VALUES (
+            @reserva_id,
+            @usuario_id,
+            @tipo_evento,
+            @descripcion
+          );
+        `);
+
+    await transaction.commit();
+
+    return {
+      codigo: 'OK',
+      solicitud_extension: solicitudExtension,
+      reserva: reservaActualizada,
+      evento: eventoResult.recordset[0]
+    };
+
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error(
+        'Error al revertir aprobación de extensión:',
+        rollbackError
+      );
+    }
+
+    throw error;
+  }
+};
+
+const rechazarSolicitudExtensionReservaGestion = async ({
+  usuario_gestor_id,
+  solicitud_extension_id,
+  comentario_decision
+}) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin(
+      sql.ISOLATION_LEVEL.SERIALIZABLE
+    );
+
+    const extensionResult =
+      await new sql.Request(transaction)
+        .input(
+          'usuario_gestor_id',
+          sql.Int,
+          usuario_gestor_id
+        )
+        .input(
+          'solicitud_extension_id',
+          sql.Int,
+          solicitud_extension_id
+        )
+        .input(
+          'comentario_decision',
+          sql.NVarChar(500),
+          comentario_decision
+        )
+        .query(`
+          UPDATE se
+          SET
+            se.estado = 'RECHAZADA',
+            se.fecha_decision = SYSDATETIME(),
+            se.decidido_por_usuario_id =
+              @usuario_gestor_id,
+            se.comentario_decision =
+              @comentario_decision
+          OUTPUT
+            INSERTED.solicitud_extension_id,
+            INSERTED.reserva_id,
+            INSERTED.solicitante_usuario_id,
+            INSERTED.nueva_fecha_fin,
+            INSERTED.motivo,
+            INSERTED.estado,
+            INSERTED.fecha_solicitud,
+            INSERTED.fecha_decision,
+            INSERTED.decidido_por_usuario_id,
+            INSERTED.comentario_decision
+          FROM booking.SolicitudExtension se
+          INNER JOIN booking.Reserva r
+            ON r.reserva_id = se.reserva_id
+          INNER JOIN catalog.Inmueble i
+            ON i.inmueble_id = r.inmueble_id
+          INNER JOIN catalog.Publicacion p
+            ON p.inmueble_id = i.inmueble_id
+          WHERE
+            se.solicitud_extension_id =
+              @solicitud_extension_id
+
+            AND se.estado = 'PENDIENTE'
+
+            AND (
+              p.publicado_por_usuario_id =
+                @usuario_gestor_id
+
+              OR EXISTS (
+                SELECT 1
+                FROM core.EmpresaSecretario es
+                WHERE es.empresa_id = i.empresa_id
+                  AND es.secretario_usuario_id =
+                    @usuario_gestor_id
+                  AND es.activo = 1
+              )
+            )
+
+            AND i.activo = 1
+            AND i.deleted_at IS NULL;
+        `);
+
+    const solicitudExtension =
+      extensionResult.recordset[0];
+
+    if (!solicitudExtension) {
+      await transaction.rollback();
+      return null;
+    }
+
+    let descripcionEvento =
+      'La solicitud de extensión de la reserva fue rechazada.';
+
+    if (comentario_decision) {
+      descripcionEvento +=
+        ` Motivo: ${comentario_decision}`;
+    }
+
+    if (descripcionEvento.length > 500) {
+      descripcionEvento =
+        `${descripcionEvento.slice(0, 497)}...`;
+    }
+
+    const eventoResult =
+      await new sql.Request(transaction)
+        .input(
+          'reserva_id',
+          sql.Int,
+          solicitudExtension.reserva_id
+        )
+        .input(
+          'usuario_id',
+          sql.Int,
+          usuario_gestor_id
+        )
+        .input(
+          'tipo_evento',
+          sql.NVarChar(30),
+          'EXTENSION'
+        )
+        .input(
+          'descripcion',
+          sql.NVarChar(500),
+          descripcionEvento
+        )
+        .query(`
+          INSERT INTO booking.ReservaEvento (
+            reserva_id,
+            usuario_id,
+            tipo_evento,
+            descripcion
+          )
+          OUTPUT
+            INSERTED.reserva_evento_id,
+            INSERTED.reserva_id,
+            INSERTED.usuario_id,
+            INSERTED.tipo_evento,
+            INSERTED.descripcion,
+            INSERTED.fecha_evento
+          VALUES (
+            @reserva_id,
+            @usuario_id,
+            @tipo_evento,
+            @descripcion
+          );
+        `);
+
+    await transaction.commit();
+
+    return {
+      solicitud_extension: solicitudExtension,
+      evento: eventoResult.recordset[0]
+    };
+
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error(
+        'Error al revertir rechazo de extensión:',
+        rollbackError
+      );
+    }
+
+    throw error;
+  }
+};
+
 module.exports = {
   obtenerPublicacionReservablePorId,
   buscarConflictosReserva,
@@ -1514,5 +2477,12 @@ module.exports = {
   listarEvaluacionesInquilinoReservaGestion,
   registrarEvaluacionConEventoReservaGestion,
   confirmarCheckinReservaGestion,
-  confirmarCheckoutReservaGestion
+  confirmarCheckoutReservaGestion,
+  obtenerReservaExtensibleInquilinoPorId,
+  obtenerSolicitudExtensionPendientePorReserva,
+  buscarConflictosExtensionReserva,
+  crearSolicitudExtensionReserva,
+  obtenerExtensionPendienteReservaGestion,
+  aprobarSolicitudExtensionReservaGestion,
+  rechazarSolicitudExtensionReservaGestion
 };

@@ -35,22 +35,21 @@ function ConfirmDialog({
                 <p>{descripcion}</p>
 
                 <div className="confirm-actions">
-                    <button
-                        type="button"
-                        className="btn-gestion-secondary"
-                        onClick={onCerrar}
-                        disabled={cargando}
-                    >
-                        {textoCancelar}
+                    <button type="button" 
+                    className="btn-confirm-cancel" 
+                    onClick={onCerrar}
+                    disabled={cargando} 
+                    > 
+                    {textoCancelar} 
                     </button>
 
                     <button
                         type="button"
-                        className={
-                            tipo === 'danger'
-                                ? 'btn-gestion-danger'
-                                : 'btn-gestion-primary'
-                        }
+                        className={ tipo === 'danger' 
+                            ? 'btn-gestion-danger' 
+                            : tipo === 'success' 
+                            ? 'btn-confirm-success' 
+                            : 'btn-gestion-primary' }
                         onClick={onConfirmar}
                         disabled={cargando}
                     >

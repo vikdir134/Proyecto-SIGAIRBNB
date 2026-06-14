@@ -90,8 +90,47 @@ export interface MisSolicitudesResponse {
 export interface DetalleMiSolicitudResponse {
     mensaje: string;
     solicitud: SolicitudReserva;
+    solicitud_extension_pendiente: SolicitudExtension | null;
     total_eventos: number;
     eventos: EventoReserva[];
+}
+
+// HU13 - Solicitud de extensión
+
+export interface SolicitudExtensionFormData {
+    nueva_fecha_fin: string;
+    motivo?: string;
+}
+
+export interface SolicitudExtension {
+    solicitud_extension_id: number;
+    reserva_id: number;
+    solicitante_usuario_id: number;
+    nueva_fecha_fin: string;
+    motivo: string | null;
+    estado: 'PENDIENTE' | 'APROBADA' | 'RECHAZADA' | 'CANCELADA';
+    fecha_solicitud: string;
+    fecha_decision: string | null;
+    decidido_por_usuario_id: number | null;
+    comentario_decision: string | null;
+}
+
+export interface SolicitarExtensionReservaResponse {
+    mensaje: string;
+
+    reserva: {
+        reserva_id: number;
+        inmueble_id: number;
+        estado_reserva: string;
+        fecha_inicio: string;
+        fecha_fin_actual: string;
+        codigo_inmueble: string;
+        nombre_inmueble: string;
+        titulo_publicacion: string | null;
+    };
+
+    solicitud_extension: SolicitudExtension;
+    evento: EventoReserva;
 }
 
 export interface EstadoVettingSolicitud {
@@ -218,6 +257,23 @@ export const obtenerDetalleMiSolicitud = async (
     });
 
     return manejarRespuesta<DetalleMiSolicitudResponse>(response);
+};
+
+/*HU 13*/
+export const solicitarExtensionReserva = async (
+    reservaId: number,
+    data: SolicitudExtensionFormData
+): Promise<SolicitarExtensionReservaResponse> => {
+    const response = await fetch(
+        `${API_URL}/reservas/mis-solicitudes/${reservaId}/extensiones`,
+        {
+            method: 'POST',
+            headers: obtenerHeaders(),
+            body: JSON.stringify(data)
+        }
+    );
+
+    return manejarRespuesta<SolicitarExtensionReservaResponse>(response);
 };
 
 export interface SolicitudReservaGestion extends SolicitudReserva {
@@ -366,6 +422,33 @@ export const confirmarCheckoutReservaGestion = async (
     return manejarRespuesta<ControlOcupacionReservaResponse>(response);
 };
 
+export interface SolicitudExtensionGestion {
+    solicitud_extension_id: number;
+    reserva_id: number;
+    solicitante_usuario_id: number;
+
+    nueva_fecha_fin: string;
+    motivo: string | null;
+    estado: 'PENDIENTE' | 'APROBADA' | 'RECHAZADA' | 'CANCELADA';
+    fecha_solicitud: string;
+
+    fecha_decision: string | null;
+    decidido_por_usuario_id: number | null;
+    comentario_decision: string | null;
+
+    fecha_inicio: string;
+    fecha_fin_actual: string;
+    estado_reserva: string;
+    inmueble_id: number;
+
+    codigo_inmueble: string;
+    nombre_inmueble: string;
+
+    nombres_inquilino: string | null;
+    apellidos_inquilino: string | null;
+    correo_inquilino: string;
+}
+
 export interface EventosGestionReservaResponse {
     mensaje: string;
     reserva: {
@@ -379,6 +462,7 @@ export interface EventosGestionReservaResponse {
         nombre_inmueble: string;
         tipo_inmueble: string;
     };
+    solicitud_extension_pendiente: SolicitudExtensionGestion | null;
     total: number;
     eventos: EventoReserva[];
 }
@@ -395,6 +479,63 @@ export const obtenerEventosReservaGestion = async (
     );
 
     return manejarRespuesta<EventosGestionReservaResponse>(response);
+};
+
+export interface GestionSolicitudExtensionResponse {
+    mensaje: string;
+    solicitud_extension: SolicitudExtensionGestion;
+    reserva?: {
+        reserva_id: number;
+        inmueble_id: number;
+        inquilino_id: number;
+        estado_reserva: string;
+        fecha_inicio: string;
+        fecha_fin: string;
+        updated_at: string;
+    };
+    evento: EventoReserva;
+}
+
+export const aprobarSolicitudExtensionGestion = async (
+    solicitudExtensionId: number,
+    comentarioDecision?: string
+): Promise<GestionSolicitudExtensionResponse> => {
+    const response = await fetch(
+        `${API_URL}/reservas/gestion/extensiones/${solicitudExtensionId}/aprobar`,
+        {
+            method: 'PUT',
+            headers: obtenerHeaders(),
+            body: JSON.stringify({
+                comentario_decision:
+                    comentarioDecision?.trim() || null
+            })
+        }
+    );
+
+    return manejarRespuesta<GestionSolicitudExtensionResponse>(
+        response
+    );
+};
+
+export const rechazarSolicitudExtensionGestion = async (
+    solicitudExtensionId: number,
+    comentarioDecision: string
+): Promise<GestionSolicitudExtensionResponse> => {
+    const response = await fetch(
+        `${API_URL}/reservas/gestion/extensiones/${solicitudExtensionId}/rechazar`,
+        {
+            method: 'PUT',
+            headers: obtenerHeaders(),
+            body: JSON.stringify({
+                comentario_decision:
+                    comentarioDecision.trim()
+            })
+        }
+    );
+
+    return manejarRespuesta<GestionSolicitudExtensionResponse>(
+        response
+    );
 };
 
 export interface VettingInquilinoResponse {
