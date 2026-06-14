@@ -3,13 +3,14 @@ import SidebarGestion from '../components/SidebarGestion';
 import DetalleGestionReservaDialog from '../components/DetalleGestionReservaDialog';
 import ConfirmDecisionReservaDialog from '../components/ConfirmDecisionReservaDialog';
 import VettingInquilinoDialog from '../components/VettingInquilinoDialog';
+import ConfirmOcupacionReservaDialog from '../components/ConfirmOcupacionReservaDialog';
 import {
     listarSolicitudesGestion,
     aprobarSolicitudReservaGestion,
     rechazarSolicitudReservaGestion,
+    obtenerResumenVettingGestion,
     confirmarCheckinReservaGestion,
     confirmarCheckoutReservaGestion,
-    obtenerResumenVettingGestion,
     type SolicitudReservaGestion
 } from '../services/reservaService';
 
@@ -93,6 +94,15 @@ function GestionSolicitudesReserva() {
     const [decisionAbierta, setDecisionAbierta] = useState(false);
     const [tipoDecision, setTipoDecision] = useState<'APROBAR' | 'RECHAZAR'>('APROBAR');
     const [solicitudDecision, setSolicitudDecision] = useState<SolicitudReservaGestion | null>(null);
+
+    const [ocupacionAbierta, setOcupacionAbierta] =
+        useState(false);
+
+    const [tipoOcupacion, setTipoOcupacion] =
+        useState<'CHECKIN' | 'CHECKOUT'>('CHECKIN');
+
+    const [solicitudOcupacion, setSolicitudOcupacion] =
+        useState<SolicitudReservaGestion | null>(null);
 
     const cargarSolicitudes = async (
         limpiarMensaje = true,
@@ -239,80 +249,72 @@ function GestionSolicitudesReserva() {
         }
     };
 
-    const confirmarCheckin = async (
-        solicitud: SolicitudReservaGestion
+    const abrirDialogOcupacion = (
+        solicitud: SolicitudReservaGestion,
+        tipo: 'CHECKIN' | 'CHECKOUT'
     ) => {
-        const confirmado = window.confirm(
-            `¿Confirmar el check-in de ${
-                solicitud.nombres_inquilino || 'este inquilino'
-            } en ${solicitud.nombre_inmueble}?`
-        );
-
-        if (!confirmado) return;
-
-        try {
-            setProcesandoId(solicitud.reserva_id);
-            setError('');
-            setMensaje('');
-
-            const response = await confirmarCheckinReservaGestion(
-                solicitud.reserva_id
-            );
-
-            await cargarSolicitudes(false);
-
-            setMensaje(
-                response.mensaje || 'Check-in confirmado correctamente.'
-            );
-        } catch (err) {
-            const mensajeError =
-                err instanceof Error
-                    ? err.message
-                    : 'Error al confirmar el check-in de la reserva.';
-
-            setError(mensajeError);
-        } finally {
-            setProcesandoId(null);
-        }
+        setTipoOcupacion(tipo);
+        setSolicitudOcupacion(solicitud);
+        setOcupacionAbierta(true);
+        setMensaje('');
+        setError('');
     };
 
-    const confirmarCheckout = async (
-        solicitud: SolicitudReservaGestion
-    ) => {
-        const nombreInquilino = [
-            solicitud.nombres_inquilino,
-            solicitud.apellidos_inquilino
-        ]
-            .filter(Boolean)
-            .join(' ') || 'este inquilino';
+    const cerrarDialogOcupacion = () => {
+        if (procesandoId !== null) {
+            return;
+        }
 
-        const confirmado = window.confirm(
-            `¿Confirmar el check-out de ${nombreInquilino} en ${solicitud.nombre_inmueble}? La reserva quedará finalizada y el inmueble volverá a estar disponible.`
-        );
+        setOcupacionAbierta(false);
+        setSolicitudOcupacion(null);
+    };
 
-        if (!confirmado) return;
+    const confirmarOcupacionReserva = async () => {
+        if (!solicitudOcupacion) {
+            return;
+        }
 
         try {
-            setProcesandoId(solicitud.reserva_id);
-            setError('');
+            setProcesandoId(solicitudOcupacion.reserva_id);
             setMensaje('');
+            setError('');
 
-            const response = await confirmarCheckoutReservaGestion(
-                solicitud.reserva_id
-            );
+            if (tipoOcupacion === 'CHECKIN') {
+                const response =
+                    await confirmarCheckinReservaGestion(
+                        solicitudOcupacion.reserva_id
+                    );
+
+                setMensaje(
+                    response.mensaje ||
+                    'Check-in confirmado correctamente.'
+                );
+            } else {
+                const response =
+                    await confirmarCheckoutReservaGestion(
+                        solicitudOcupacion.reserva_id
+                    );
+
+                setMensaje(
+                    response.mensaje ||
+                    'Check-out confirmado correctamente.'
+                );
+            }
+
+            setOcupacionAbierta(false);
+            setSolicitudOcupacion(null);
 
             await cargarSolicitudes(false);
-
-            setMensaje(
-                response.mensaje || 'Check-out confirmado correctamente.'
-            );
         } catch (err) {
-            const mensajeError =
+            setError(
                 err instanceof Error
                     ? err.message
-                    : 'Error al confirmar el check-out de la reserva.';
-
-            setError(mensajeError);
+                    : `No se pudo confirmar el ${
+                        tipoOcupacion === 'CHECKIN'
+                            ? 'check-in'
+                            : 'check-out'
+                    }.`
+            );
         } finally {
             setProcesandoId(null);
         }
@@ -932,7 +934,9 @@ function GestionSolicitudesReserva() {
                                                 <button
                                                     type="button"
                                                     className="gestion-btn-checkin"
-                                                    onClick={() => confirmarCheckin(solicitud)}
+                                                    onClick={() =>
+                                                        abrirDialogOcupacion(solicitud, 'CHECKIN')
+                                                    }
                                                     disabled={procesandoId === solicitud.reserva_id}
                                                 >
                                                     {procesandoId === solicitud.reserva_id
@@ -947,7 +951,12 @@ function GestionSolicitudesReserva() {
                                                 <button
                                                     type="button"
                                                     className="gestion-btn-checkout"
-                                                    onClick={() => confirmarCheckout(solicitud)}
+                                                    onClick={() =>
+                                                        abrirDialogOcupacion(
+                                                            solicitud,
+                                                            'CHECKOUT'
+                                                        )
+                                                    }
                                                     disabled={procesandoId === solicitud.reserva_id}
                                                 >
                                                     {procesandoId === solicitud.reserva_id
@@ -998,6 +1007,18 @@ function GestionSolicitudesReserva() {
                     onConfirmar={confirmarDecisionReserva}
                 />
             )}
+
+            <ConfirmOcupacionReservaDialog
+                abierto={ocupacionAbierta}
+                tipo={tipoOcupacion}
+                solicitud={solicitudOcupacion}
+                procesando={
+                    solicitudOcupacion !== null &&
+                    procesandoId === solicitudOcupacion.reserva_id
+                }
+                onCerrar={cerrarDialogOcupacion}
+                onConfirmar={confirmarOcupacionReserva}
+            />
 
         </div>
     );
