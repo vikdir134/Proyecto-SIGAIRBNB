@@ -5,7 +5,17 @@ import {
     type EventoReserva,
     type SolicitudExtension
 } from '../services/reservaService';
+
+import {
+    descargarReciboPdf,
+    listarRecibosReserva,
+    obtenerNumeroVisualRecibo,
+    verReciboPdf,
+    type ReciboReserva
+} from '../services/reciboService';
+
 import SolicitudExtensionDialog from './SolicitudExtensionDialog';
+
 
 
 interface DetalleSolicitudReservaDialogProps {
@@ -26,6 +36,12 @@ function DetalleSolicitudReservaDialog({
     const [cargando, setCargando] = useState(false);
     const [error, setError] = useState('');
     const [mostrarSolicitudExtension, setMostrarSolicitudExtension] = useState(false);
+    const [recibos, setRecibos] =
+    useState<ReciboReserva[]>([]);
+
+const [descargandoRecibo, setDescargandoRecibo] =
+    useState(false);
+
 
     const formatearFecha = (fecha?: string | null) => {
         if (!fecha) return 'No especificada';
@@ -115,6 +131,11 @@ function DetalleSolicitudReservaDialog({
             setExtensionPendiente(
                 response.solicitud_extension_pendiente || null
             );
+
+            const responseRecibos =
+    await listarRecibosReserva(reservaId);
+
+setRecibos(responseRecibos.recibos || []);
         } catch (err) {
             const mensajeError =
                 err instanceof Error
@@ -131,14 +152,55 @@ function DetalleSolicitudReservaDialog({
         void cargarDetalle();
     }, [cargarDetalle]);
 
-    const cerrar = () => {
-        setSolicitud(null);
-        setEventos([]);
-        setExtensionPendiente(null);
-        setMostrarSolicitudExtension(false)
+const verBoletaDigital = async (
+    reciboId: number
+) => {
+    try {
+        setDescargandoRecibo(true);
         setError('');
-        onCerrar();
-    };
+
+        await verReciboPdf(reciboId);
+    } catch (err) {
+        setError(
+            err instanceof Error
+                ? err.message
+                : 'No se pudo abrir la boleta digital.'
+        );
+    } finally {
+        setDescargandoRecibo(false);
+    }
+};
+
+const descargarBoletaDigital = async (
+    reciboId: number
+) => {
+    try {
+        setDescargandoRecibo(true);
+        setError('');
+
+        await descargarReciboPdf(reciboId);
+    } catch (err) {
+        setError(
+            err instanceof Error
+                ? err.message
+                : 'No se pudo descargar la boleta digital.'
+        );
+    } finally {
+        setDescargandoRecibo(false);
+    }
+};
+
+const cerrar = () => {
+    if (descargandoRecibo) return;
+
+    setSolicitud(null);
+    setEventos([]);
+    setExtensionPendiente(null);
+    setRecibos([]);
+    setMostrarSolicitudExtension(false);
+    setError('');
+    onCerrar();
+};
 
     if (!abierto) {
         return null;
@@ -165,12 +227,13 @@ function DetalleSolicitudReservaDialog({
                     </div>
 
                     <button
-                        type="button"
-                        className="detalle-solicitud-close"
-                        onClick={cerrar}
-                    >
-                        ×
-                    </button>
+    type="button"
+    className="detalle-solicitud-close"
+    onClick={cerrar}
+    disabled={descargandoRecibo}
+>
+    ×
+</button>
                 </div>
 
                 {cargando && (
@@ -248,6 +311,85 @@ function DetalleSolicitudReservaDialog({
                                 </p>
                             </div>
                         </section>
+                        {(recibos.length > 0 ||
+    ['APROBADA', 'ACTIVA', 'FINALIZADA'].includes(
+        solicitud.estado_reserva
+    )) && (
+    <section className="detalle-solicitud-card">
+        <h3>Boleta digital</h3>
+
+        {recibos.length === 0 ? (
+            <p>
+                La empresa todavía no ha generado una boleta
+                digital para esta reserva.
+            </p>
+        ) : (
+            <div className="detalle-solicitud-timeline">
+                {recibos.map((recibo) => (
+                    <div
+                        key={recibo.recibo_id}
+                        className="detalle-solicitud-evento evento-nota"
+                    >
+                        <div className="detalle-solicitud-dot" />
+
+                        <div>
+                            <strong>
+                               Boleta digital {obtenerNumeroVisualRecibo(recibo)}
+                            </strong>
+
+                            <p>
+                                Total:{' '}
+                                {recibo.moneda === 'USD'
+                                    ? '$'
+                                    : 'S/'}{' '}
+                                {Number(
+                                    recibo.total || 0
+                                ).toFixed(2)}
+                                {' · '}
+                                Estado: {recibo.estado_recibo}
+                            </p>
+
+                            <small>
+                                Periodo: {recibo.periodo_mes}/
+                                {recibo.periodo_anio}
+                            </small>
+
+                            <div className="extension-dialog-actions">
+                                <button
+                                    type="button"
+                                    className="extension-button-secondary"
+                                    onClick={() =>
+                                        verBoletaDigital(
+                                            recibo.recibo_id
+                                        )
+                                    }
+                                    disabled={descargandoRecibo}
+                                >
+                                    Ver PDF
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="extension-button-primary"
+                                    onClick={() =>
+                                        descargarBoletaDigital(
+                                            recibo.recibo_id
+                                        )
+                                    }
+                                    disabled={descargandoRecibo}
+                                >
+                                    {descargandoRecibo
+                                        ? 'Descargando...'
+                                        : 'Descargar PDF'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+    </section>
+)}
 
                         {solicitud.observacion_inquilino && (
                             <section className="detalle-solicitud-card">

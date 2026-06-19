@@ -3303,3 +3303,274 @@ button:disabled {
     width: 100%;
     min-width: 1200px;
 }
+
+.recibo-preview-dialog {
+    max-width: 760px;
+    width: min(760px, calc(100% - 32px));
+}
+
+.recibo-preview-info {
+    margin: 12px 0 16px;
+    color: #4b5563;
+}
+
+.recibo-preview-info p {
+    margin: 0 0 6px;
+}
+
+.recibo-preview-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+
+.recibo-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.recibo-preview-table th {
+    background: #f9fafb;
+    color: #374151;
+    text-align: left;
+    padding: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.recibo-preview-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: top;
+}
+
+.recibo-preview-table td span {
+    display: block;
+    margin-top: 0.25rem;
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+.recibo-preview-summary {
+    margin-top: 16px;
+    margin-left: auto;
+    max-width: 320px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.recibo-preview-summary div {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.recibo-preview-summary div:last-child {
+    border-bottom: none;
+}
+
+.recibo-preview-total {
+    background: #f9fafb;
+    color: #111827;
+    font-size: 1rem;
+}
+
+.recibo-preview-note {
+    margin-top: 12px;
+    padding: 0.75rem 1rem;
+    background: #fff7ed;
+    border-left: 4px solid #ff6600;
+    border-radius: 10px;
+    color: #7c2d12;
+    font-size: 0.85rem;
+}
+
+.recibo-preview-actions {
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+.recibo-preview-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(3px);
+}
+
+.recibo-preview-modal {
+    width: min(820px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+    padding: 24px;
+    border: 1px solid #e5e7eb;
+}
+
+.recibo-preview-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.recibo-preview-header h3 {
+    margin: 0;
+    font-size: 1.35rem;
+    color: #111827;
+}
+
+.recibo-preview-info {
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    color: #374151;
+}
+
+.recibo-preview-info p {
+    margin: 0 0 8px;
+    line-height: 1.5;
+}
+
+.recibo-preview-info small {
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.recibo-preview-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.recibo-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.recibo-preview-table th {
+    background: #f3f4f6;
+    color: #374151;
+    text-align: left;
+    padding: 0.85rem;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 700;
+}
+
+.recibo-preview-table td {
+    padding: 0.85rem;
+    border-bottom: 1px solid #f3f4f6;
+    vertical-align: top;
+    color: #111827;
+}
+
+.recibo-preview-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.recibo-preview-table td span {
+    display: block;
+    margin-top: 0.25rem;
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+.recibo-preview-note {
+    margin-top: 14px;
+    padding: 0.85rem 1rem;
+    background: #fff7ed;
+    border-left: 4px solid #ff6600;
+    border-radius: 12px;
+    color: #7c2d12;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.recibo-preview-summary {
+    margin-top: 16px;
+    margin-left: auto;
+    max-width: 340px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.recibo-preview-summary div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+}
+
+.recibo-preview-summary div:last-child {
+    border-bottom: none;
+}
+
+.recibo-preview-total {
+    background: #f9fafb;
+    color: #111827;
+    font-size: 1.05rem;
+}
+
+.recibo-preview-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.recibo-preview-button-secondary,
+.recibo-preview-button-primary {
+    border: none;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.recibo-preview-button-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.recibo-preview-button-secondary:hover:not(:disabled) {
+    background: #e5e7eb;
+}
+
+.recibo-preview-button-primary {
+    background: #7f0000;
+    color: #ffffff;
+}
+
+.recibo-preview-button-primary:hover:not(:disabled) {
+    background: #600000;
+}
+
+.recibo-preview-button-secondary:disabled,
+.recibo-preview-button-primary:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}

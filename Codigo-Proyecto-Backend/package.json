@@ -18,7 +18,8 @@
     "jsonwebtoken": "^9.0.3",
     "mssql": "^12.5.0",
     "multer": "^2.1.1",
-    "nodemailer": "^8.0.6"
+    "nodemailer": "^8.0.6",
+    "puppeteer": "^25.1.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

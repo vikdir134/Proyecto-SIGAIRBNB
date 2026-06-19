@@ -4,6 +4,8 @@ import {
     useState
 } from 'react';
 
+import { useNavigate } from 'react-router-dom';
+
 import {
     aprobarSolicitudExtensionGestion,
     obtenerEventosReservaGestion,
@@ -12,7 +14,18 @@ import {
     type SolicitudExtensionGestion
 } from '../services/reservaService';
 
+import {
+    descargarReciboPdf,
+    generarReciboReservaGestion,
+    listarRecibosReserva,
+    obtenerNumeroVisualRecibo,
+    previsualizarReciboReservaGestion,
+    verReciboPdf,
+    type ReciboReserva,
+    type VistaPreviaRecibo
+} from '../services/reciboService';
 import ConfirmDialog from './ConfirmDialog';
+
 
 interface DetalleGestionReservaDialogProps {
     abierto: boolean;
@@ -25,6 +38,7 @@ function DetalleGestionReservaDialog({
     reservaId,
     onCerrar
 }: DetalleGestionReservaDialogProps) {
+    const navigate = useNavigate();
     const [eventos, setEventos] =
         useState<EventoReserva[]>([]);
 
@@ -53,6 +67,24 @@ function DetalleGestionReservaDialog({
 
     const [error, setError] = useState('');
     const [mensaje, setMensaje] = useState('');
+    const [recibos, setRecibos] =
+    useState<ReciboReserva[]>([]);
+
+const [procesandoRecibo, setProcesandoRecibo] =
+    useState(false);
+
+const [descargandoRecibo, setDescargandoRecibo] =
+    useState(false);
+
+const [previewRecibo, setPreviewRecibo] =
+    useState<VistaPreviaRecibo | null>(null);
+
+const [previewAbierto, setPreviewAbierto] =
+    useState(false);
+
+const [cargandoPreviewRecibo, setCargandoPreviewRecibo] =
+    useState(false);
+
     const [accionConfirmacion, setAccionConfirmacion] =
     useState<'aprobar' | 'rechazar' | null>(null);
 
@@ -156,6 +188,11 @@ function DetalleGestionReservaDialog({
                     .solicitud_extension_pendiente ||
                     null
             );
+
+            const responseRecibos =
+    await listarRecibosReserva(reservaId);
+
+setRecibos(responseRecibos.recibos || []);
         } catch (err) {
             const mensajeError =
                 err instanceof Error
@@ -272,19 +309,170 @@ function DetalleGestionReservaDialog({
         }
     };
 
-    const cerrar = () => {
-        if (procesandoExtension) return;
 
-        setReserva(null);
-        setEventos([]);
-        setExtensionPendiente(null);
-        setComentarioDecision('');
-        setAccionConfirmacion(null);
+    const puedeGenerarRecibo = () => {
+    if (!reserva) return false;
+
+    const estadosPermitidos = [
+        'APROBADA',
+        'ACTIVA',
+        'FINALIZADA'
+    ];
+
+    return (
+        estadosPermitidos.includes(
+            reserva.estado_reserva
+        ) && recibos.length === 0
+    );
+};
+
+const abrirPreviewBoletaDigital = async () => {
+    if (!reservaId) return;
+
+    try {
+        setCargandoPreviewRecibo(true);
         setError('');
         setMensaje('');
 
-        onCerrar();
-    };
+        const response =
+            await previsualizarReciboReservaGestion(
+                reservaId
+            );
+
+        setPreviewRecibo({
+            reserva: response.reserva,
+            conceptos: response.conceptos,
+            subtotal: response.subtotal,
+            igv_total: response.igv_total,
+            total: response.total,
+            dias_reserva: response.dias_reserva,
+            fecha_vencimiento:
+                response.fecha_vencimiento
+        });
+
+        setPreviewAbierto(true);
+    } catch (err) {
+        const mensajeError =
+            err instanceof Error
+                ? err.message
+                : 'No se pudo generar la vista previa de la boleta.';
+
+        setError(mensajeError);
+    } finally {
+        setCargandoPreviewRecibo(false);
+    }
+};
+
+const cerrarPreviewBoletaDigital = () => {
+    if (procesandoRecibo) return;
+
+    setPreviewAbierto(false);
+    setPreviewRecibo(null);
+};
+
+const confirmarEmisionBoletaDigital = async () => {
+    if (!reservaId) return;
+
+    try {
+        setProcesandoRecibo(true);
+        setError('');
+        setMensaje('');
+
+        const response =
+            await generarReciboReservaGestion(
+                reservaId,
+                'Boleta digital emitida luego de revisión de conceptos de cobro.'
+            );
+
+        setMensaje(response.mensaje);
+        setPreviewAbierto(false);
+        setPreviewRecibo(null);
+
+        await cargarDetalle();
+    } catch (err) {
+        const mensajeError =
+            err instanceof Error
+                ? err.message
+                : 'No se pudo generar la boleta digital.';
+
+        setError(mensajeError);
+    } finally {
+        setProcesandoRecibo(false);
+    }
+};
+
+const descargarBoletaDigital = async (
+    reciboId: number
+) => {
+    try {
+        setDescargandoRecibo(true);
+        setError('');
+        setMensaje('');
+
+        await descargarReciboPdf(reciboId);
+    } catch (err) {
+        const mensajeError =
+            err instanceof Error
+                ? err.message
+                : 'No se pudo descargar la boleta digital.';
+
+        setError(mensajeError);
+    } finally {
+        setDescargandoRecibo(false);
+    }
+};
+
+const verBoletaDigital = async (
+    reciboId: number
+) => {
+    try {
+        setDescargandoRecibo(true);
+        setError('');
+        setMensaje('');
+
+        await verReciboPdf(reciboId);
+    } catch (err) {
+        const mensajeError =
+            err instanceof Error
+                ? err.message
+                : 'No se pudo abrir la boleta digital.';
+
+        setError(mensajeError);
+    } finally {
+        setDescargandoRecibo(false);
+    }
+};
+
+const irAGestionConceptosCobro = () => {
+    setPreviewAbierto(false);
+    setPreviewRecibo(null);
+    cerrar();
+
+    navigate('/gestion/conceptos-cobro');
+};
+
+
+const cerrar = () => {
+    if (
+        procesandoExtension ||
+        procesandoRecibo ||
+        descargandoRecibo ||
+        cargandoPreviewRecibo
+    ) return;
+
+    setReserva(null);
+    setEventos([]);
+    setExtensionPendiente(null);
+    setComentarioDecision('');
+    setAccionConfirmacion(null);
+    setRecibos([]);
+    setPreviewRecibo(null);
+    setPreviewAbierto(false);
+    setError('');
+    setMensaje('');
+
+    onCerrar();
+};
 
     if (!abierto) return null;
 
@@ -309,8 +497,12 @@ function DetalleGestionReservaDialog({
                         type="button"
                         className="detalle-solicitud-close"
                         onClick={cerrar}
-                        disabled={procesandoExtension}
-                    >
+disabled={
+    procesandoExtension ||
+    procesandoRecibo ||
+    descargandoRecibo ||
+    cargandoPreviewRecibo
+}                  >
                         ×
                     </button>
                 </div>
@@ -374,6 +566,130 @@ function DetalleGestionReservaDialog({
                         </div>
                     </section>
                 )}
+
+                {!cargando && reserva && (
+    <section className="detalle-solicitud-card">
+        <div className="gestion-extension-header">
+            <div>
+                <p className="detalle-solicitud-subtitle">
+                    Documento de cobro
+                </p>
+
+                <h3>Boleta digital</h3>
+            </div>
+
+            {recibos.length > 0 && (
+                <span className="gestion-extension-badge">
+                    EMITIDA
+                </span>
+            )}
+        </div>
+
+        {recibos.length === 0 ? (
+            <>
+                <p>
+                    Esta reserva todavía no tiene una boleta
+                    digital generada.
+                </p>
+
+                <div className="gestion-extension-actions">
+                    <button
+                        type="button"
+                        className="extension-button-primary"
+                        onClick={abrirPreviewBoletaDigital}
+                            disabled={
+                            !puedeGenerarRecibo() ||
+                            procesandoRecibo ||
+                            procesandoExtension||
+                            cargandoPreviewRecibo
+                        }
+                    >
+                        {cargandoPreviewRecibo
+    ? 'Cargando...'
+    : 'Revisar boleta'}
+                    </button>
+                </div>
+
+                {!puedeGenerarRecibo() && (
+                    <small className="extension-character-count">
+                        Solo se puede generar boleta para
+                        reservas aprobadas, activas o finalizadas.
+                    </small>
+                )}
+            </>
+        ) : (
+            <div className="detalle-solicitud-timeline">
+                {recibos.map((recibo) => (
+                    <div
+                        key={recibo.recibo_id}
+                        className="detalle-solicitud-evento evento-nota"
+                    >
+                        <div className="detalle-solicitud-dot" />
+
+                        <div>
+                            <strong>
+                                Boleta digital {obtenerNumeroVisualRecibo(recibo)}
+                            </strong>
+
+                            <p>
+                                Total:{' '}
+                                {recibo.moneda === 'USD'
+                                    ? '$'
+                                    : 'S/'}{' '}
+                                {Number(
+                                    recibo.total || 0
+                                ).toFixed(2)}
+                                {' · '}
+                                Estado: {recibo.estado_recibo}
+                            </p>
+
+                            <small>
+                                Periodo: {recibo.periodo_mes}/
+                                {recibo.periodo_anio}
+                            </small>
+
+                            <div className="gestion-extension-actions">
+                               <button
+                            type="button"
+                            className="extension-button-secondary"
+                            onClick={() =>
+                                verBoletaDigital(
+                                    recibo.recibo_id
+                                )
+                            }
+                            disabled={
+                                descargandoRecibo ||
+                                procesandoRecibo
+                            }
+                        >
+                            Ver PDF
+                        </button>
+
+                        <button
+                            type="button"
+                            className="extension-button-primary"
+                            onClick={() =>
+                                descargarBoletaDigital(
+                                    recibo.recibo_id
+                                )
+                            }
+                            disabled={
+                                descargandoRecibo ||
+                                procesandoRecibo
+                            }
+                        >
+                            {descargandoRecibo
+                                ? 'Descargando...'
+                                : 'Descargar PDF'}
+                        </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )}
+    </section>
+)}
 
                 {!cargando && extensionPendiente && (
                     <section className="detalle-solicitud-card gestion-extension-card">
@@ -564,6 +880,188 @@ function DetalleGestionReservaDialog({
                 )}
             </div>
         </div>
+{previewAbierto && previewRecibo && (
+    <div className="recibo-preview-overlay">
+        <div className="recibo-preview-modal">
+           <div className="recibo-preview-header">
+                <div>
+                    <p className="detalle-solicitud-subtitle">
+                        Revisión previa
+                    </p>
+
+                    <h3>Boleta digital</h3>
+                </div>
+
+                <button
+                    type="button"
+                    className="detalle-solicitud-close"
+                    onClick={cerrarPreviewBoletaDigital}
+                    disabled={procesandoRecibo}
+                >
+                    ×
+                </button>
+            </div>
+
+            <div className="recibo-preview-info">
+                <p>
+    Antes de emitir la boleta, revisa los conceptos de cobro
+    que se aplicarán a esta reserva. Estos conceptos se obtienen
+    desde la configuración de Conceptos de cobro.
+</p>
+
+                <small>
+                    Días de reserva:{' '}
+                    {previewRecibo.dias_reserva}
+                    {' · '}
+                    Vencimiento:{' '}
+                    {new Date(
+                        previewRecibo.fecha_vencimiento
+                    ).toLocaleDateString('es-PE')}
+                </small>
+            </div>
+
+            <div className="recibo-preview-table-wrapper">
+                <table className="recibo-preview-table">
+                    <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <th>Cant.</th>
+                            <th>Subtotal</th>
+                            <th>IGV</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {previewRecibo.conceptos.map(
+                            (concepto) => (
+                                <tr
+                                    key={
+                                        concepto.concepto_cobro_id
+                                    }
+                                >
+                                    <td>
+                                        <strong>
+                                            {concepto.descripcion}
+                                        </strong>
+
+                                        <span>
+                                            {concepto.codigo}
+                                            {concepto.obligatorio
+                                                ? ' · Obligatorio'
+                                                : ' · Concepto adicional'}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        {Number(
+                                            concepto.cantidad
+                                        ).toFixed(2)}
+                                    </td>
+
+                                    <td>
+                                        S/{' '}
+                                        {Number(
+                                            concepto.importe
+                                        ).toFixed(2)}
+                                    </td>
+
+                                    <td>
+                                        S/{' '}
+                                        {Number(
+                                            concepto.igv
+                                        ).toFixed(2)}
+                                    </td>
+
+                                    <td>
+                                        <strong>
+                                            S/{' '}
+                                            {Number(
+                                                concepto.total_linea
+                                            ).toFixed(2)}
+                                        </strong>
+                                    </td>
+                                </tr>
+                            )
+                        )}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="recibo-preview-note">
+    <strong>Nota:</strong> La renta de reserva es obligatoria y
+    se calcula desde la reserva. Los conceptos adicionales se
+    toman desde la configuración activa de Conceptos de cobro.
+</div>
+
+            <div className="recibo-preview-summary">
+                <div>
+                    <span>Subtotal</span>
+
+                    <strong>
+                        S/{' '}
+                        {Number(
+                            previewRecibo.subtotal
+                        ).toFixed(2)}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>IGV 18%</span>
+
+                    <strong>
+                        S/{' '}
+                        {Number(
+                            previewRecibo.igv_total
+                        ).toFixed(2)}
+                    </strong>
+                </div>
+
+                <div className="recibo-preview-total">
+                    <span>Total</span>
+
+                    <strong>
+                        S/{' '}
+                        {Number(
+                            previewRecibo.total
+                        ).toFixed(2)}
+                    </strong>
+                </div>
+            </div>
+
+           <div className="recibo-preview-actions">
+    <button
+    type="button"
+    className="recibo-preview-button-secondary"
+    onClick={cerrarPreviewBoletaDigital}
+    disabled={procesandoRecibo}
+>
+    Cancelar
+</button>
+
+<button
+    type="button"
+    className="recibo-preview-button-secondary"
+    onClick={irAGestionConceptosCobro}
+    disabled={procesandoRecibo}
+>
+    Gestionar conceptos
+</button>
+
+<button
+    type="button"
+    className="recibo-preview-button-primary"
+    onClick={confirmarEmisionBoletaDigital}
+    disabled={procesandoRecibo}
+>
+    {procesandoRecibo
+        ? 'Emitiendo...'
+        : 'Confirmar emisión'}
+</button>
+</div>
+        </div>
+    </div>
+)}
 
         <ConfirmDialog
             abierto={accionConfirmacion !== null}

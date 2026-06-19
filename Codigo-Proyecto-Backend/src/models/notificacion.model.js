@@ -65,7 +65,6 @@ const listarNotificacionesUsuario = async (empresa_id, usuario_id, limite = 10) 
   const pool = await getConnection();
 
   const result = await pool.request()
-    .input('empresa_id', sql.Int, empresa_id)
     .input('usuario_id', sql.Int, usuario_id)
     .input('limite', sql.Int, limite)
     .query(`
@@ -84,26 +83,22 @@ const listarNotificacionesUsuario = async (empresa_id, usuario_id, limite = 10) 
         n.fecha_lectura,
         n.activo
       FROM auth.Notificacion n
-      WHERE n.empresa_id = @empresa_id
-        AND n.usuario_destino_id = @usuario_id
+      WHERE n.usuario_destino_id = @usuario_id
         AND n.activo = 1
       ORDER BY n.fecha_creacion DESC;
     `);
 
   return result.recordset;
 };
-
 const contarNotificacionesNoLeidas = async (empresa_id, usuario_id) => {
   const pool = await getConnection();
 
   const result = await pool.request()
-    .input('empresa_id', sql.Int, empresa_id)
     .input('usuario_id', sql.Int, usuario_id)
     .query(`
       SELECT COUNT(*) AS total_no_leidas
       FROM auth.Notificacion
-      WHERE empresa_id = @empresa_id
-        AND usuario_destino_id = @usuario_id
+      WHERE usuario_destino_id = @usuario_id
         AND leida = 0
         AND activo = 1;
     `);
@@ -115,7 +110,6 @@ const marcarNotificacionComoLeida = async (empresa_id, usuario_id, notificacion_
   const pool = await getConnection();
 
   const result = await pool.request()
-    .input('empresa_id', sql.Int, empresa_id)
     .input('usuario_id', sql.Int, usuario_id)
     .input('notificacion_id', sql.Int, notificacion_id)
     .query(`
@@ -138,27 +132,23 @@ const marcarNotificacionComoLeida = async (empresa_id, usuario_id, notificacion_
         inserted.fecha_lectura,
         inserted.activo
       WHERE notificacion_id = @notificacion_id
-        AND empresa_id = @empresa_id
         AND usuario_destino_id = @usuario_id
         AND activo = 1;
     `);
 
   return result.recordset[0];
 };
-
 const marcarTodasNotificacionesComoLeidas = async (empresa_id, usuario_id) => {
   const pool = await getConnection();
 
   const result = await pool.request()
-    .input('empresa_id', sql.Int, empresa_id)
     .input('usuario_id', sql.Int, usuario_id)
     .query(`
       UPDATE auth.Notificacion
       SET 
         leida = 1,
         fecha_lectura = SYSUTCDATETIME()
-      WHERE empresa_id = @empresa_id
-        AND usuario_destino_id = @usuario_id
+      WHERE usuario_destino_id = @usuario_id
         AND leida = 0
         AND activo = 1;
     `);
