@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import NotificacionesCampana from './NotificacionesCampana';
 
 interface PublicHeaderProps {
     mostrarFiltros?: boolean;
@@ -111,6 +112,9 @@ function PublicHeader({
                             Iniciar sesión
                         </Link>
                     </>
+                )}
+                {usuarioSesion && (
+                    <NotificacionesCampana />
                 )}
 
                 {usuarioSesion && (
