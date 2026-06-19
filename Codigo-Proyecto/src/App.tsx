@@ -22,6 +22,7 @@ import RestablecerPassword from './pages/RestablecerPassword';
 import GestionPublicacion from './pages/GestionPublicacion';
 import MisSolicitudesReserva from './pages/MisSolicitudesReserva';
 import GestionSolicitudesReserva from './pages/GestionSolicitudesReserva';
+import GestionConceptosCobro from './pages/GestionConceptosCobro';
 
 function App() {
   return (
@@ -34,7 +35,14 @@ function App() {
         <Route path='/VerificarEmail' element={<VerificarEmail />} />
         <Route path='/RecuperarPassword' element={<RecuperarPassword />} />
         <Route path='/RestablecerPassword' element={<RestablecerPassword />} />
-
+            <Route
+            path="/gestion/conceptos-cobro"
+            element={
+                <RutaGestionReservas>
+                    <GestionConceptosCobro />
+                </RutaGestionReservas>
+            }
+        />
         <Route
             path="/GestionHome"
             element={

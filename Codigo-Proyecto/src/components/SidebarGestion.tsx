@@ -145,7 +145,9 @@ function SidebarGestion() {
                             <NavLink to="/GestionSolicitudesReserva">
                                 Solicitudes de reserva
                             </NavLink>
-
+                            <NavLink to="/gestion/conceptos-cobro">
+                                Conceptos de cobro
+                            </NavLink>
                             <NavLink to="/GestionAdmin">
                                 Mantenimiento Admin
                             </NavLink>
@@ -154,9 +156,15 @@ function SidebarGestion() {
 
                     {/* Funciones del secretario */}
                     {esSecretario && !esAdmin && (
-                        <NavLink to="/GestionSolicitudesReserva">
-                            Control de ocupación
-                        </NavLink>
+                        <>
+                            <NavLink to="/GestionSolicitudesReserva">
+                                Control de ocupación
+                            </NavLink>
+
+                            <NavLink to="/gestion/conceptos-cobro">
+                                Conceptos de cobro
+                            </NavLink>
+                        </>
                     )}
 
                     <NavLink to="/GestionPerfil">
