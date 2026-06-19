@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import SidebarGestion from '../components/SidebarGestion';
-
+import ConfirmDialog from '../components/ConfirmDialog';
 import {
     listarUsuariosAdmin,
     inactivarUsuarioAdmin,
@@ -12,6 +12,7 @@ import {
     obtenerSecretariosEmpresa,
     asignarSecretarioEmpresa,
     revocarSecretarioEmpresa,
+    eliminarSecretarioRevocado,
     reactivarSecretarioEmpresa,
     type SecretarioAsignado
 } from '../services/secretarioService';
@@ -30,6 +31,12 @@ function GestionAdmin() {
     const [secretarios, setSecretarios] = useState<SecretarioAsignado[]>([]);
     const [correoSecretario, setCorreoSecretario] = useState('');
     const [cargandoSecretarios, setCargandoSecretarios] = useState(false);
+
+    const [secretarioAEliminar, setSecretarioAEliminar] =
+    useState<SecretarioAsignado | null>(null);
+
+const [confirmEliminarAbierto, setConfirmEliminarAbierto] =
+    useState(false);
 
     const [secretarioSeleccionado, setSecretarioSeleccionado] =
         useState<SecretarioAsignado | null>(null);
@@ -153,6 +160,7 @@ function GestionAdmin() {
         }
     };
 
+
     const ejecutarReactivacionSecretario = async (
         secretario: SecretarioAsignado
     ) => {
@@ -178,6 +186,45 @@ function GestionAdmin() {
             setCargandoSecretarios(false);
         }
     };
+
+   const abrirConfirmacionEliminarSecretario = (
+    secretario: SecretarioAsignado
+) => {
+    setSecretarioAEliminar(secretario);
+    setConfirmEliminarAbierto(true);
+};
+
+const cerrarConfirmacionEliminarSecretario = () => {
+    setSecretarioAEliminar(null);
+    setConfirmEliminarAbierto(false);
+};
+
+const ejecutarEliminacionSecretarioRevocado = async () => {
+    if (!secretarioAEliminar) return;
+
+    try {
+        setCargandoSecretarios(true);
+        setMensaje('');
+        setError('');
+
+        const respuesta = await eliminarSecretarioRevocado(
+            secretarioAEliminar.empresa_secretario_id
+        );
+
+        await cargarSecretarios();
+
+        setMensaje(respuesta.mensaje);
+        cerrarConfirmacionEliminarSecretario();
+    } catch (err) {
+        setError(
+            err instanceof Error
+                ? err.message
+                : 'Error al quitar el secretario revocado'
+        );
+    } finally {
+        setCargandoSecretarios(false);
+    }
+};
 
     useEffect(() => {
         cargarUsuarios();
@@ -358,31 +405,45 @@ function GestionAdmin() {
                                                 </td>
 
                                                 <td>
-                                                    {secretario.activo ? (
-                                                        <button
-                                                            type="button"
-                                                            className="btn-danger btn-tabla"
-                                                            onClick={() =>
-                                                                abrirConfirmacionRevocar(secretario)
-                                                            }
-                                                            disabled={cargandoSecretarios}
-                                                        >
-                                                            Revocar acceso
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            type="button"
-                                                            className="btn-gestion-primary btn-tabla"
-                                                            onClick={() =>
-                                                                ejecutarReactivacionSecretario(secretario)
-                                                            }
-                                                            disabled={cargandoSecretarios}
-                                                        >
-                                                            {cargandoSecretarios
-                                                                ? 'Procesando...'
-                                                                : 'Reactivar acceso'}
-                                                        </button>
-                                                    )}
+                                                   {secretario.activo ? (
+                                                <button
+                                                    type="button"
+                                                    className="btn-danger btn-tabla"
+                                                    onClick={() =>
+                                                        abrirConfirmacionRevocar(secretario)
+                                                    }
+                                                    disabled={cargandoSecretarios}
+                                                >
+                                                    Revocar acceso
+                                                </button>
+                                            ) : (
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-gestion-primary btn-tabla"
+                                                        onClick={() =>
+                                                            ejecutarReactivacionSecretario(secretario)
+                                                        }
+                                                        disabled={cargandoSecretarios}
+                                                    >
+                                                        {cargandoSecretarios
+                                                            ? 'Procesando...'
+                                                            : 'Reactivar acceso'}
+                                                    </button>
+
+                                                   <button
+                                                    type="button"
+                                                    className="btn-danger btn-tabla"
+                                                    onClick={() =>
+                                                        abrirConfirmacionEliminarSecretario(secretario)
+                                                    }
+                                                    disabled={cargandoSecretarios}
+                                                    title="Quitar de la lista"
+                                                >
+                                                    ✕
+                                                </button>
+                                                </div>
+                                            )}
                                                 </td>
                                             </tr>
                                         );
@@ -585,6 +646,25 @@ function GestionAdmin() {
                         </div>
                     </div>
                 )}
+
+                <ConfirmDialog
+    abierto={confirmEliminarAbierto}
+    titulo="Quitar secretario revocado"
+    descripcion={
+        secretarioAEliminar
+            ? `¿Quieres quitar de la lista a ${
+                `${secretarioAEliminar.nombres || ''} ${secretarioAEliminar.apellidos || ''}`.trim() ||
+                secretarioAEliminar.correo_secretario
+            }? Esta acción no elimina su cuenta, solo quita la asignación revocada de la lista.`
+            : '¿Quieres quitar este secretario revocado de la lista?'
+    }
+    textoConfirmar="Quitar de la lista"
+    textoCancelar="Cancelar"
+    tipo="danger"
+    cargando={cargandoSecretarios}
+    onConfirmar={ejecutarEliminacionSecretarioRevocado}
+    onCerrar={cerrarConfirmacionEliminarSecretario}
+/>
             </main>
         </div>
     );

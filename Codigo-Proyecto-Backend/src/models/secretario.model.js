@@ -111,7 +111,81 @@ const asignarSecretarioEmpresaPorCorreo = async ({
     }
 
     /*
-      3. Obtener el rol SECRETARIO.
+  3. Validar que el usuario no tenga roles incompatibles
+  ni una asignación activa como secretario.
+*/
+const rolesActualesResult = await new sql.Request(transaction)
+  .input(
+    'secretario_usuario_id',
+    sql.Int,
+    usuarioSecretario.usuario_id
+  )
+  .query(`
+    SELECT
+      UPPER(r.nombre) AS rol
+    FROM auth.UsuarioRol ur
+    INNER JOIN auth.Rol r
+      ON r.rol_id = ur.rol_id
+    WHERE ur.usuario_id = @secretario_usuario_id
+      AND r.activo = 1;
+  `);
+
+const rolesActuales = rolesActualesResult.recordset.map(
+  (item) => item.rol
+);
+
+if (rolesActuales.includes('ADMIN')) {
+  await transaction.rollback();
+
+  return {
+    ok: false,
+    codigo: 'USUARIO_YA_ES_ADMIN',
+    mensaje:
+      'No se puede asignar como secretario a un usuario que ya es administrador'
+  };
+}
+
+if (rolesActuales.includes('SECRETARIO')) {
+  await transaction.rollback();
+
+  return {
+    ok: false,
+    codigo: 'USUARIO_YA_ES_SECRETARIO',
+    mensaje:
+      'Este usuario ya tiene el rol de secretario'
+  };
+}
+
+const asignacionActivaResult = await new sql.Request(transaction)
+  .input(
+    'secretario_usuario_id',
+    sql.Int,
+    usuarioSecretario.usuario_id
+  )
+  .query(`
+    SELECT TOP 1
+      empresa_secretario_id,
+      empresa_id
+    FROM core.EmpresaSecretario
+    WHERE secretario_usuario_id = @secretario_usuario_id
+      AND activo = 1;
+  `);
+
+const asignacionActiva = asignacionActivaResult.recordset[0];
+
+if (asignacionActiva) {
+  await transaction.rollback();
+
+  return {
+    ok: false,
+    codigo: 'USUARIO_YA_ASIGNADO_COMO_SECRETARIO',
+    mensaje:
+      'Este usuario ya se encuentra asignado como secretario en otra empresa o gestión'
+  };
+}
+
+    /*
+      4. Obtener el rol SECRETARIO.
     */
     const rolResult = await new sql.Request(transaction)
       .query(`
@@ -137,7 +211,7 @@ const asignarSecretarioEmpresaPorCorreo = async ({
     }
 
     /*
-      4. Asignar el rol SECRETARIO si todavía no lo tiene.
+      5. Asignar el rol SECRETARIO si todavía no lo tiene.
       El usuario conserva sus otros roles, por ejemplo CLIENTE.
     */
     await new sql.Request(transaction)
@@ -480,6 +554,124 @@ const revocarSecretarioEmpresa = async ({
   }
 };
 
+const eliminarAsignacionSecretarioRevocada = async ({
+  empresa_id,
+  empresa_secretario_id
+}) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  try {
+    await transaction.begin();
+
+    const asignacionResult = await new sql.Request(transaction)
+      .input('empresa_id', sql.Int, empresa_id)
+      .input('empresa_secretario_id', sql.Int, empresa_secretario_id)
+      .query(`
+        SELECT
+          es.empresa_secretario_id,
+          es.empresa_id,
+          es.secretario_usuario_id,
+          es.activo,
+          u.correo AS correo_secretario
+        FROM core.EmpresaSecretario es
+        INNER JOIN auth.Usuario u
+          ON u.usuario_id = es.secretario_usuario_id
+        WHERE es.empresa_secretario_id = @empresa_secretario_id
+          AND es.empresa_id = @empresa_id;
+      `);
+
+    const asignacion = asignacionResult.recordset[0];
+
+    if (!asignacion) {
+      await transaction.rollback();
+
+      return {
+        ok: false,
+        codigo: 'ASIGNACION_NO_ENCONTRADA',
+        mensaje:
+          'No se encontró la asignación del secretario en esta empresa'
+      };
+    }
+
+    if (asignacion.activo) {
+      await transaction.rollback();
+
+      return {
+        ok: false,
+        codigo: 'ASIGNACION_ACTIVA_NO_ELIMINABLE',
+        mensaje:
+          'No se puede quitar de la lista a un secretario activo. Primero debes revocarlo.'
+      };
+    }
+
+    await new sql.Request(transaction)
+      .input('empresa_secretario_id', sql.Int, empresa_secretario_id)
+      .query(`
+        DELETE FROM core.EmpresaSecretario
+        WHERE empresa_secretario_id = @empresa_secretario_id;
+      `);
+
+    /*
+      Por seguridad, verificamos si todavía tiene alguna asignación activa.
+      Si no tiene ninguna, quitamos el rol SECRETARIO.
+    */
+    const asignacionesActivasResult =
+      await new sql.Request(transaction)
+        .input(
+          'secretario_usuario_id',
+          sql.Int,
+          asignacion.secretario_usuario_id
+        )
+        .query(`
+          SELECT COUNT(*) AS cantidad
+          FROM core.EmpresaSecretario
+          WHERE secretario_usuario_id = @secretario_usuario_id
+            AND activo = 1;
+        `);
+
+    const cantidadAsignacionesActivas = Number(
+      asignacionesActivasResult.recordset[0]?.cantidad || 0
+    );
+
+    if (cantidadAsignacionesActivas === 0) {
+      await new sql.Request(transaction)
+        .input(
+          'secretario_usuario_id',
+          sql.Int,
+          asignacion.secretario_usuario_id
+        )
+        .query(`
+          DELETE ur
+          FROM auth.UsuarioRol ur
+          INNER JOIN auth.Rol r
+            ON r.rol_id = ur.rol_id
+          WHERE ur.usuario_id = @secretario_usuario_id
+            AND r.nombre = 'SECRETARIO';
+        `);
+    }
+
+    await transaction.commit();
+
+    return {
+      ok: true,
+      asignacion
+    };
+  } catch (error) {
+    try {
+      await transaction.rollback();
+    } catch (rollbackError) {
+      console.error(
+        'Error al revertir la eliminación de asignación:',
+        rollbackError
+      );
+    }
+
+    throw error;
+  }
+};
+
+
 const reactivarSecretarioEmpresa = async ({
   empresa_id,
   empresa_secretario_id,
@@ -653,5 +845,6 @@ module.exports = {
   asignarSecretarioEmpresaPorCorreo,
   listarSecretariosEmpresa,
   revocarSecretarioEmpresa,
+  eliminarAsignacionSecretarioRevocada,
   reactivarSecretarioEmpresa
 };

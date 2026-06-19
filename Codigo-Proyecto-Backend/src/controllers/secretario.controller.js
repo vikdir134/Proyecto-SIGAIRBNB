@@ -2,6 +2,7 @@ const {
   asignarSecretarioEmpresaPorCorreo,
   listarSecretariosEmpresa,
   revocarSecretarioEmpresa,
+   eliminarAsignacionSecretarioRevocada,
   reactivarSecretarioEmpresa
 } = require('../models/secretario.model');
 
@@ -65,13 +66,16 @@ const asignarSecretario = async (req, res) => {
       });
 
     if (!resultado.ok) {
-      const estadosPorCodigo = {
-        ADMIN_NO_VALIDO: 403,
-        USUARIO_NO_ENCONTRADO: 404,
-        AUTO_ASIGNACION: 400,
-        USUARIO_NO_HABILITADO: 409,
-        ROL_NO_DISPONIBLE: 500
-      };
+     const estadosPorCodigo = {
+  ADMIN_NO_VALIDO: 403,
+  USUARIO_NO_ENCONTRADO: 404,
+  AUTO_ASIGNACION: 400,
+  USUARIO_NO_HABILITADO: 409,
+  USUARIO_YA_ES_ADMIN: 409,
+  USUARIO_YA_ES_SECRETARIO: 409,
+  USUARIO_YA_ASIGNADO_COMO_SECRETARIO: 409,
+  ROL_NO_DISPONIBLE: 500
+};
 
       const estadoHttp =
         estadosPorCodigo[resultado.codigo] || 400;
@@ -202,6 +206,72 @@ const revocarSecretario = async (req, res) => {
   }
 };
 
+const eliminarSecretarioRevocado = async (req, res) => {
+  try {
+    const empresa_id = Number(req.usuario?.empresa_id);
+
+    const empresa_secretario_id = Number(
+      req.params.empresa_secretario_id
+    );
+
+    if (
+      !Number.isInteger(empresa_id) ||
+      empresa_id <= 0
+    ) {
+      return res.status(400).json({
+        mensaje:
+          'El administrador no tiene una empresa válida asociada'
+      });
+    }
+
+    if (
+      !Number.isInteger(empresa_secretario_id) ||
+      empresa_secretario_id <= 0
+    ) {
+      return res.status(400).json({
+        mensaje:
+          'El identificador de la asignación no es válido'
+      });
+    }
+
+    const resultado =
+      await eliminarAsignacionSecretarioRevocada({
+        empresa_id,
+        empresa_secretario_id
+      });
+
+    if (!resultado.ok) {
+      const estadosPorCodigo = {
+        ASIGNACION_NO_ENCONTRADA: 404,
+        ASIGNACION_ACTIVA_NO_ELIMINABLE: 409
+      };
+
+      return res
+        .status(estadosPorCodigo[resultado.codigo] || 400)
+        .json({
+          mensaje: resultado.mensaje,
+          codigo: resultado.codigo
+        });
+    }
+
+    return res.status(200).json({
+      mensaje:
+        'Secretario revocado quitado de la lista correctamente',
+      asignacion: resultado.asignacion
+    });
+  } catch (error) {
+    console.error(
+      'Error al quitar secretario revocado:',
+      error
+    );
+
+    return res.status(500).json({
+      mensaje:
+        'Ocurrió un error al quitar el secretario revocado'
+    });
+  }
+};
+
 const reactivarSecretario = async (req, res) => {
   try {
     const empresa_id = Number(req.usuario?.empresa_id);
@@ -284,5 +354,6 @@ module.exports = {
   asignarSecretario,
   obtenerSecretariosEmpresa,
   revocarSecretario,
+  eliminarSecretarioRevocado,
   reactivarSecretario
 };

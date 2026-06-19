@@ -5,6 +5,7 @@ const {
   asignarSecretario,
   obtenerSecretariosEmpresa,
   revocarSecretario,
+  eliminarSecretarioRevocado,
   reactivarSecretario
 } = require('../controllers/secretario.controller');
 
@@ -35,6 +36,13 @@ router.patch(
   verificarToken,
   autorizarRoles('ADMIN'),
   revocarSecretario
+);
+
+router.delete(
+  '/asignaciones/:empresa_secretario_id',
+  verificarToken,
+  autorizarRoles('ADMIN'),
+  eliminarSecretarioRevocado
 );
 
 router.patch(

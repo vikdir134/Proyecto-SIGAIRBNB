@@ -17,6 +17,11 @@ export interface SecretarioAsignado {
     nombre_comercial?: string;
 }
 
+interface EliminarSecretarioResponse {
+    mensaje: string;
+    asignacion: SecretarioAsignado;
+}
+
 interface ListaSecretariosResponse {
     mensaje: string;
     cantidad: number;
@@ -119,6 +124,24 @@ export const revocarSecretarioEmpresa = async (
     );
 
     return procesarRespuesta<RevocarSecretarioResponse>(
+        response
+    );
+};
+
+export const eliminarSecretarioRevocado = async (
+    empresaSecretarioId: number
+): Promise<EliminarSecretarioResponse> => {
+    const response = await fetch(
+        `${API_URL}/secretarios/asignaciones/${empresaSecretarioId}`,
+        {
+            method: 'DELETE',
+            headers: {
+                Authorization: `Bearer ${obtenerToken()}`
+            }
+        }
+    );
+
+    return procesarRespuesta<EliminarSecretarioResponse>(
         response
     );
 };

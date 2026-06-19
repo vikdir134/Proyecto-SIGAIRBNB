@@ -22,11 +22,12 @@ const asignarRolSecretario = async () => {
       .query(`
         SELECT
           usuario_id,
+          empresa_id,
           correo,
           estado,
           activo
         FROM auth.Usuario
-        WHERE correo = @correo
+        WHERE LOWER(correo) = @correo
           AND activo = 1
           AND deleted_at IS NULL;
       `);
@@ -39,13 +40,41 @@ const asignarRolSecretario = async () => {
       );
     }
 
+    const rolesActualesResult = await pool.request()
+      .input('usuario_id', sql.Int, usuario.usuario_id)
+      .query(`
+        SELECT
+          UPPER(r.nombre) AS rol
+        FROM auth.UsuarioRol ur
+        INNER JOIN auth.Rol r
+          ON r.rol_id = ur.rol_id
+        WHERE ur.usuario_id = @usuario_id
+          AND r.activo = 1;
+      `);
+
+    const rolesActuales = rolesActualesResult.recordset.map(
+      (item) => item.rol
+    );
+
+    if (rolesActuales.includes('ADMIN')) {
+      throw new Error(
+        'No se puede asignar como SECRETARIO a un usuario que ya es ADMIN.'
+      );
+    }
+
+    if (rolesActuales.includes('SECRETARIO')) {
+      throw new Error(
+        'Este usuario ya tiene el rol SECRETARIO.'
+      );
+    }
+
     const rolResult = await pool.request()
       .query(`
         SELECT
           rol_id,
           nombre
         FROM auth.Rol
-        WHERE nombre = 'SECRETARIO'
+        WHERE UPPER(nombre) = 'SECRETARIO'
           AND activo = 1;
       `);
 
@@ -53,7 +82,7 @@ const asignarRolSecretario = async () => {
 
     if (!rolSecretario) {
       throw new Error(
-        'El rol SECRETARIO no existe o se encuentra inactivo'
+        'El rol SECRETARIO no existe o se encuentra inactivo.'
       );
     }
 
@@ -61,25 +90,17 @@ const asignarRolSecretario = async () => {
       .input('usuario_id', sql.Int, usuario.usuario_id)
       .input('rol_id', sql.Int, rolSecretario.rol_id)
       .query(`
-        IF NOT EXISTS (
-          SELECT 1
-          FROM auth.UsuarioRol
-          WHERE usuario_id = @usuario_id
-            AND rol_id = @rol_id
+        INSERT INTO auth.UsuarioRol (
+          usuario_id,
+          rol_id
         )
-        BEGIN
-          INSERT INTO auth.UsuarioRol (
-            usuario_id,
-            rol_id
-          )
-          VALUES (
-            @usuario_id,
-            @rol_id
-          );
-        END;
+        VALUES (
+          @usuario_id,
+          @rol_id
+        );
       `);
 
-    const rolesResult = await pool.request()
+    const rolesFinalesResult = await pool.request()
       .input('usuario_id', sql.Int, usuario.usuario_id)
       .query(`
         SELECT
@@ -94,7 +115,7 @@ const asignarRolSecretario = async () => {
 
     console.log('Rol SECRETARIO asignado correctamente.');
     console.log(`Usuario: ${usuario.correo}`);
-    console.table(rolesResult.recordset);
+    console.table(rolesFinalesResult.recordset);
 
   } catch (error) {
     console.error('Error al asignar el rol SECRETARIO:', error.message);
