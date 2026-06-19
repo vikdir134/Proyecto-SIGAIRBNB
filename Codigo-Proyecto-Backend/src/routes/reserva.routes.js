@@ -17,7 +17,8 @@ const {
   confirmarCheckoutReserva,
   solicitarExtensionReserva,
   aprobarSolicitudExtension,
-  rechazarSolicitudExtension
+  rechazarSolicitudExtension,
+  cancelarReservaInquilino
 } = require('../controllers/reserva.controller');
 
 const {
@@ -33,6 +34,8 @@ router.get(
   verificarToken,
   obtenerMisSolicitudesReserva
 );
+
+router.patch('/:reserva_id/cancelar', verificarToken, cancelarReservaInquilino);
 
 router.post(
   '/solicitudes',

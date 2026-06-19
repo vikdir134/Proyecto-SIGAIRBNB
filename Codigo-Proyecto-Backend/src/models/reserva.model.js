@@ -2457,6 +2457,145 @@ const rechazarSolicitudExtensionReservaGestion = async ({
   }
 };
 
+const obtenerReservaParaCancelacionInquilino = async (reserva_id, usuario_id) => {
+  const pool = await getConnection();
+
+  const result = await pool.request()
+    .input('reserva_id', sql.Int, reserva_id)
+    .input('usuario_id', sql.Int, usuario_id)
+    .query(`
+      SELECT
+        r.reserva_id,
+        i.empresa_id,
+        r.inmueble_id,
+        r.inquilino_id,
+        r.estado_reserva,
+        r.fecha_solicitud,
+        r.fecha_inicio,
+        r.fecha_fin,
+        r.renta_pactada_mensual,
+        r.monto_total_estimado,
+        r.deposito_garantia,
+        r.moneda,
+        r.observacion_inquilino,
+        r.motivo_cancelacion,
+        r.fecha_checkin,
+        r.fecha_checkout,
+        r.cancelado_por_usuario_id,
+        r.fecha_cancelacion,
+
+        i.codigo AS codigo_inmueble,
+        i.nombre AS nombre_inmueble,
+        i.tipo_inmueble,
+        i.direccion_linea1,
+        i.distrito,
+        i.ciudad,
+
+        pub.publicacion_id,
+        pub.titulo AS titulo_publicacion,
+        pub.publicado_por_usuario_id AS anfitrion_usuario_id
+      FROM booking.Reserva r
+      INNER JOIN catalog.Inmueble i
+        ON i.inmueble_id = r.inmueble_id
+      OUTER APPLY (
+        SELECT TOP 1
+          p.publicacion_id,
+          p.titulo,
+          p.publicado_por_usuario_id
+        FROM catalog.Publicacion p
+        WHERE p.inmueble_id = r.inmueble_id
+        ORDER BY p.publicacion_id DESC
+      ) pub
+      WHERE r.reserva_id = @reserva_id
+        AND r.inquilino_id = @usuario_id;
+    `);
+
+  return result.recordset[0];
+};
+const cancelarReservaPorInquilino = async ({
+  reserva_id,
+  usuario_id,
+  motivo
+}) => {
+  const pool = await getConnection();
+  const transaction = new sql.Transaction(pool);
+
+  await transaction.begin();
+
+  try {
+    const updateReserva = await new sql.Request(transaction)
+      .input('reserva_id', sql.Int, reserva_id)
+      .input('usuario_id', sql.Int, usuario_id)
+      .input('motivo', sql.NVarChar(500), motivo)
+      .query(`
+        UPDATE booking.Reserva
+        SET 
+          estado_reserva = 'CANCELADA',
+          motivo_cancelacion = @motivo,
+          cancelado_por_usuario_id = @usuario_id,
+          fecha_cancelacion = SYSUTCDATETIME(),
+          updated_at = SYSUTCDATETIME()
+        OUTPUT
+          inserted.reserva_id,
+          inserted.inmueble_id,
+          inserted.inquilino_id,
+          inserted.estado_reserva,
+          inserted.fecha_solicitud,
+          inserted.fecha_inicio,
+          inserted.fecha_fin,
+          inserted.renta_pactada_mensual,
+          inserted.monto_total_estimado,
+          inserted.deposito_garantia,
+          inserted.moneda,
+          inserted.motivo_cancelacion,
+          inserted.cancelado_por_usuario_id,
+          inserted.fecha_cancelacion,
+          inserted.fecha_checkin,
+          inserted.fecha_checkout,
+          inserted.updated_at
+        WHERE reserva_id = @reserva_id
+          AND inquilino_id = @usuario_id;
+      `);
+
+    const reservaCancelada = updateReserva.recordset[0];
+
+    if (!reservaCancelada) {
+      await transaction.rollback();
+      return null;
+    }
+
+    const descripcion = motivo
+      ? `El inquilino canceló la reserva. Motivo: ${motivo}`
+      : 'El inquilino canceló la reserva.';
+
+    await new sql.Request(transaction)
+      .input('reserva_id', sql.Int, reserva_id)
+      .input('usuario_id', sql.Int, usuario_id)
+      .input('tipo_evento', sql.NVarChar(30), 'CANCELACION')
+      .input('descripcion', sql.NVarChar(500), descripcion)
+      .query(`
+        INSERT INTO booking.ReservaEvento (
+          reserva_id,
+          usuario_id,
+          tipo_evento,
+          descripcion
+        )
+        VALUES (
+          @reserva_id,
+          @usuario_id,
+          @tipo_evento,
+          @descripcion
+        );
+      `);
+
+    await transaction.commit();
+
+    return reservaCancelada;
+  } catch (error) {
+    await transaction.rollback();
+    throw error;
+  }
+};
 module.exports = {
   obtenerPublicacionReservablePorId,
   buscarConflictosReserva,
@@ -2484,5 +2623,7 @@ module.exports = {
   crearSolicitudExtensionReserva,
   obtenerExtensionPendienteReservaGestion,
   aprobarSolicitudExtensionReservaGestion,
-  rechazarSolicitudExtensionReservaGestion
+  rechazarSolicitudExtensionReservaGestion,
+  obtenerReservaParaCancelacionInquilino,
+  cancelarReservaPorInquilino
 };

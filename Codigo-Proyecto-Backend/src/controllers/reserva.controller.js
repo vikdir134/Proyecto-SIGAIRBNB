@@ -23,8 +23,14 @@ const {
   crearSolicitudExtensionReserva,
   obtenerExtensionPendienteReservaGestion,
   aprobarSolicitudExtensionReservaGestion,
-  rechazarSolicitudExtensionReservaGestion
+  rechazarSolicitudExtensionReservaGestion,
+  obtenerReservaParaCancelacionInquilino,
+  cancelarReservaPorInquilino
 } = require('../models/reserva.model');
+
+const {
+  crearNotificacion
+} = require('../models/notificacion.model');
 
 const limpiarTexto = (valor) => {
   if (valor === undefined || valor === null) return '';
@@ -1824,6 +1830,77 @@ const rechazarSolicitudExtension = async (
   }
 };
 
+const cancelarReservaInquilino = async (req, res) => {
+  try {
+    const empresa_id = req.usuario.empresa_id;
+    const usuario_id = req.usuario.usuario_id;
+    const reserva_id = Number(req.params.reserva_id);
+
+    const { motivo } = req.body;
+
+    if (!reserva_id || Number.isNaN(reserva_id)) {
+      return res.status(400).json({
+        mensaje: 'El ID de la reserva no es válido'
+      });
+    }
+
+    const reserva = await obtenerReservaParaCancelacionInquilino(
+  reserva_id,
+  usuario_id
+);
+
+    if (!reserva) {
+      return res.status(404).json({
+        mensaje: 'No se encontró la reserva o no pertenece al inquilino autenticado'
+      });
+    }
+
+    const estadosCancelables = ['SOLICITADA', 'APROBADA'];
+
+    if (!estadosCancelables.includes(reserva.estado_reserva)) {
+      return res.status(400).json({
+        mensaje: `La reserva no puede cancelarse porque se encuentra en estado ${reserva.estado_reserva}`
+      });
+    }
+
+    const reservaCancelada = await cancelarReservaPorInquilino({
+  reserva_id,
+  usuario_id,
+  motivo: motivo?.trim() || null
+});
+
+    let notificacionCreada = null;
+
+        if (reserva.anfitrion_usuario_id) {
+      notificacionCreada = await crearNotificacion({
+        empresa_id: reserva.empresa_id,
+        usuario_origen_id: usuario_id,
+        usuario_destino_id: reserva.anfitrion_usuario_id,
+        tipo_notificacion: 'RESERVA_CANCELADA_INQUILINO',
+        titulo: 'Reserva cancelada',
+        mensaje: `El inquilino canceló la reserva del inmueble ${reserva.nombre_inmueble || reserva.codigo_inmueble || ''}.`,
+        referencia_tipo: 'RESERVA',
+        referencia_id: reserva_id
+      });
+    }
+
+    return res.status(200).json({
+      mensaje: 'Reserva cancelada correctamente',
+      reserva: reservaCancelada,
+      notificacion: notificacionCreada
+    });
+
+  } catch (error) {
+    console.error('Error al cancelar reserva:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al cancelar la reserva',
+      error: error.message
+    });
+  }
+};
+
+
 module.exports = {
   solicitarReserva,
   obtenerMisSolicitudesReserva,
@@ -1840,5 +1917,6 @@ module.exports = {
   confirmarCheckoutReserva,
   solicitarExtensionReserva,
   aprobarSolicitudExtension,
-  rechazarSolicitudExtension
+  rechazarSolicitudExtension,
+  cancelarReservaInquilino
 };

@@ -5,6 +5,8 @@ import {
     type SolicitudReserva
 } from '../services/reservaService';
 import DetalleSolicitudReservaDialog from '../components/DetalleSolicitudReservaDialog';
+import CancelarReservaDialog from '../components/CancelarReservaDialog';
+import API_URL from '../services/api';
 
 function MisSolicitudesReserva() {
     const [solicitudes, setSolicitudes] = useState<SolicitudReserva[]>([]);
@@ -12,6 +14,84 @@ function MisSolicitudesReserva() {
     const [error, setError] = useState('');
     const [detalleAbierto, setDetalleAbierto] = useState(false);
     const [reservaSeleccionadaId, setReservaSeleccionadaId] = useState<number | null>(null);
+   const [reservaSeleccionadaCancelar, setReservaSeleccionadaCancelar] = useState<any>(null);
+    const [cancelandoReserva, setCancelandoReserva] = useState(false);
+    const [mensajeCancelacion, setMensajeCancelacion] = useState('');
+    const [errorCancelacion, setErrorCancelacion] = useState('');
+
+    const puedeCancelarReserva = (estado: string) => {
+    return ['SOLICITADA', 'APROBADA'].includes(estado);
+};
+
+const abrirDialogCancelarReserva = (reserva: any) => {
+    setReservaSeleccionadaCancelar(reserva);
+    setMensajeCancelacion('');
+    setErrorCancelacion('');
+};
+
+const cerrarDialogCancelarReserva = () => {
+    if (cancelandoReserva) return;
+
+    setReservaSeleccionadaCancelar(null);
+};
+
+const confirmarCancelacionReserva = async (motivo: string) => {
+    if (!reservaSeleccionadaCancelar) return;
+
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+        setErrorCancelacion('Tu sesión ha expirado. Inicia sesión nuevamente.');
+        return;
+    }
+
+    try {
+        setCancelandoReserva(true);
+        setMensajeCancelacion('');
+        setErrorCancelacion('');
+
+        const response = await fetch(
+            `${API_URL}/reservas/${reservaSeleccionadaCancelar.reserva_id}/cancelar`,
+            {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    motivo: motivo || 'Cancelación realizada por el inquilino'
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            setErrorCancelacion(data.mensaje || 'No se pudo cancelar la reserva');
+            return;
+        }
+
+        setMensajeCancelacion('Reserva cancelada correctamente. El anfitrión fue notificado.');
+
+        setSolicitudes((prev: any[]) =>
+    prev.map((reserva) =>
+        reserva.reserva_id === reservaSeleccionadaCancelar.reserva_id
+            ? {
+                ...reserva,
+                estado_reserva: 'CANCELADA'
+            }
+            : reserva
+    )
+);
+
+        setReservaSeleccionadaCancelar(null);
+    } catch (error) {
+        console.error('Error al cancelar reserva:', error);
+        setErrorCancelacion('Error al conectar con el servidor');
+    } finally {
+        setCancelandoReserva(false);
+    }
+};
 
     const cargarSolicitudes = async () => {
         try {
@@ -121,6 +201,18 @@ function MisSolicitudesReserva() {
                     </div>
                 )}
 
+                {mensajeCancelacion && (
+                    <div className="reserva-alert reserva-alert-success">
+                        {mensajeCancelacion}
+                    </div>
+                )}
+
+                {errorCancelacion && (
+                    <div className="reserva-alert reserva-alert-error">
+                        {errorCancelacion}
+                    </div>
+                )}
+
                 {cargando && (
                     <div className="mis-solicitudes-empty">
                         Cargando tus solicitudes...
@@ -208,15 +300,25 @@ function MisSolicitudesReserva() {
 
                                     <div className="solicitud-card-actions">
                                         <button
-                                        type="button"
-                                        className="solicitud-detalle-btn"
-                                        onClick={() => {
-                                            setReservaSeleccionadaId(solicitud.reserva_id);
-                                            setDetalleAbierto(true);
-                                        }}
-                                    >
-                                        Ver detalle
+                                            type="button"
+                                            className="solicitud-detalle-btn"
+                                            onClick={() => {
+                                                setReservaSeleccionadaId(solicitud.reserva_id);
+                                                setDetalleAbierto(true);
+                                            }}
+                                        >
+                                            Ver detalle
                                         </button>
+
+                                        {puedeCancelarReserva(solicitud.estado_reserva) && (
+                                            <button
+                                                type="button"
+                                                className="btn-cancelar-reserva"
+                                                onClick={() => abrirDialogCancelarReserva(solicitud)}
+                                            >
+                                                Cancelar reserva
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
@@ -233,6 +335,15 @@ function MisSolicitudesReserva() {
                     setDetalleAbierto(false);
                     setReservaSeleccionadaId(null);
                 }}
+            />
+
+            <CancelarReservaDialog
+                abierto={!!reservaSeleccionadaCancelar}
+                cargando={cancelandoReserva}
+                titulo="Cancelar reserva"
+                descripcion="Al cancelar esta reserva, el anfitrión recibirá una notificación en su campanita."
+                onConfirmar={confirmarCancelacionReserva}
+                onCerrar={cerrarDialogCancelarReserva}
             />
         </>
     );

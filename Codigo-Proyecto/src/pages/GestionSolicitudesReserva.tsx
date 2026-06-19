@@ -413,7 +413,10 @@ function GestionSolicitudesReserva() {
 
         return 'vetting-pendiente';
     };
-
+    
+    const esReservaCancelada = (solicitud: SolicitudReservaGestion) => {
+    return solicitud.estado_reserva === 'CANCELADA';
+};
     return (
         <div className="gestion-layout">
             <SidebarGestion />
@@ -690,10 +693,11 @@ function GestionSolicitudesReserva() {
                                                                             : solicitud.estado_reserva}
                                             </span>
 
+                                                 {!esReservaCancelada(solicitud) && (
                                             <span className={`gestion-vetting-status ${obtenerClaseVetting(solicitud)}`}>
                                                 {obtenerTextoVetting(solicitud)}
                                             </span>
-
+                                        )}
                                             <h2>
                                                 {solicitud.titulo_publicacion ||
                                                     solicitud.nombre_inmueble}
@@ -809,9 +813,9 @@ function GestionSolicitudesReserva() {
                                         </div>
                                     </div>
                                     
-                                    {esAdmin && (
-                                        <div className={`gestion-vetting-box ${obtenerClaseVetting(solicitud)}`}>
-                                            <h3>Estado de vetting</h3>
+                                    {esAdmin && !esReservaCancelada(solicitud) && (
+    <div className={`gestion-vetting-box ${obtenerClaseVetting(solicitud)}`}>
+        <h3>Estado de vetting</h3>
 
                                             <p>
                                                 <strong>Resultado:</strong>{' '}
@@ -875,21 +879,21 @@ function GestionSolicitudesReserva() {
                                             Ver historial
                                         </button>
 
-                                        {esAdmin && (
-                                            <button
-                                                type="button"
-                                                className={
-                                                    solicitud.estado_vetting?.requiere_evaluacion
-                                                        ? 'gestion-btn-warning'
-                                                        : 'gestion-btn-secondary'
-                                                }
-                                                onClick={() => abrirDialogVetting(solicitud)}
-                                            >
-                                                {solicitud.estado_vetting?.requiere_evaluacion
-                                                    ? 'Evaluar inquilino'
-                                                    : 'Ver vetting'}
-                                            </button>
-                                        )}
+                                        {esAdmin && !esReservaCancelada(solicitud) && (
+                                        <button
+                                            type="button"
+                                            className={
+                                                solicitud.estado_vetting?.requiere_evaluacion
+                                                    ? 'gestion-btn-warning'
+                                                    : 'gestion-btn-secondary'
+                                            }
+                                            onClick={() => abrirDialogVetting(solicitud)}
+                                        >
+                                            {solicitud.estado_vetting?.requiere_evaluacion
+                                                ? 'Evaluar inquilino'
+                                                : 'Ver vetting'}
+                                        </button>
+                                    )}
 
                                         {esAdmin &&
                                             solicitud.estado_reserva === 'SOLICITADA' && (
