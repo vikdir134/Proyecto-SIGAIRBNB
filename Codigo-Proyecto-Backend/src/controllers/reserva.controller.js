@@ -73,20 +73,28 @@ const construirEstadoVettingSolicitud = (solicitud) => {
   const tieneEvaluacion = Boolean(solicitud.evaluacion_inquilino_id);
   const resultadoEvaluacion = solicitud.resultado_evaluacion || null;
 
+  const requiereEvaluacion =
+    solicitud.estado_reserva === 'SOLICITADA' &&
+    !tieneEvaluacion;
+
   return {
     tiene_evaluacion: tieneEvaluacion,
     resultado: resultadoEvaluacion,
     score_riesgo: solicitud.score_riesgo,
     fecha_evaluacion: solicitud.fecha_evaluacion,
     observaciones: solicitud.observaciones_evaluacion,
-    puede_aprobar: resultadoEvaluacion === 'APROBADO',
-    requiere_evaluacion: !tieneEvaluacion,
+    puede_aprobar:
+      solicitud.estado_reserva === 'SOLICITADA' &&
+      resultadoEvaluacion === 'APROBADO',
+    requiere_evaluacion: requiereEvaluacion,
     mensaje:
-      !tieneEvaluacion
-        ? 'Pendiente de evaluación de vetting'
-        : resultadoEvaluacion === 'APROBADO'
-          ? 'Evaluación aprobada, puede continuar con la aprobación'
-          : 'La evaluación no está aprobada'
+      solicitud.estado_reserva !== 'SOLICITADA'
+        ? 'La reserva no requiere evaluación de vetting'
+        : requiereEvaluacion
+          ? 'Pendiente de evaluación de vetting'
+          : resultadoEvaluacion === 'APROBADO'
+            ? 'Evaluación aprobada, puede continuar con la aprobación'
+            : 'La evaluación no está aprobada'
   };
 };
 
@@ -1286,7 +1294,10 @@ const obtenerResumenVettingGestion = async (req, res) => {
         resumen.solicitudes_rechazadas += 1;
       }
 
-      if (solicitud.estado_vetting.requiere_evaluacion) {
+      if (
+        solicitud.estado_reserva === 'SOLICITADA' &&
+        solicitud.estado_vetting.requiere_evaluacion
+      ) {
         resumen.pendientes_vetting += 1;
       }
 
