@@ -13,6 +13,23 @@ import {
     type CaracteristicaInmueble
 } from '../services/edificioService';
 
+import {
+    obtenerDatosFormularioGasto,
+    listarGastosMantenimiento,
+    registrarGastoMantenimiento,
+    type CategoriaGasto,
+    type CuentaMantenimiento,
+    type InmuebleGasto,
+    type GastoMantenimiento,
+    type RegistrarGastoForm
+} from '../services/mantenimientoService';
+
+const obtenerFechaActualInput = () => {
+    const ahora = new Date();
+    ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+    return ahora.toISOString().slice(0, 16);
+};
+
 function GestionMantenimiento() {
     const [inmuebles, setInmuebles] = useState<InmuebleMantenimiento[]>([]);
     const [inmuebleSeleccionado, setInmuebleSeleccionado] = useState<InmuebleMantenimiento | null>(null);
@@ -25,6 +42,32 @@ function GestionMantenimiento() {
     const [catalogoCaracteristicas, setCatalogoCaracteristicas] = useState<CaracteristicaCatalogo[]>([]);
     const [caracteristicasForm, setCaracteristicasForm] = useState<CaracteristicaInmueble[]>([]);
     const [mostrarConfirmacionBaja, setMostrarConfirmacionBaja] = useState(false);
+
+    const [categoriasGasto, setCategoriasGasto] = useState<CategoriaGasto[]>([]);
+    const [cuentasMantenimiento, setCuentasMantenimiento] = useState<CuentaMantenimiento[]>([]);
+    const [inmueblesFormularioGasto, setInmueblesFormularioGasto] = useState<InmuebleGasto[]>([]);
+    const [gastosMantenimiento, setGastosMantenimiento] = useState<GastoMantenimiento[]>([]);
+    const [cargandoGastos, setCargandoGastos] = useState(false);
+
+    const [guardandoGasto, setGuardandoGasto] = useState(false);
+
+    const [formGasto, setFormGasto] = useState<RegistrarGastoForm>({
+        cuenta_bancaria_id: 0,
+        categoria_movimiento_id: 0,
+        inmueble_id: null,
+        fecha_movimiento: obtenerFechaActualInput(),
+        concepto: '',
+        descripcion: '',
+        importe: 0,
+        referencia_externa: '',
+        observaciones: ''
+    });
+
+    const [gastoSeleccionado, setGastoSeleccionado] = useState<GastoMantenimiento | null>(null);
+
+    const [filtroTextoGasto, setFiltroTextoGasto] = useState('');
+    const [filtroCategoriaGasto, setFiltroCategoriaGasto] = useState('');
+    const [filtroInmuebleGasto, setFiltroInmuebleGasto] = useState('');
 
     const cargarInmuebles = async () => {
         try {
@@ -41,8 +84,46 @@ function GestionMantenimiento() {
         }
     };
 
+    const cargarDatosGastosMantenimiento = async () => {
+        try {
+            setCargandoGastos(true);
+            setError('');
+
+            const [formularioData, gastosData] = await Promise.all([
+                obtenerDatosFormularioGasto(),
+                listarGastosMantenimiento()
+            ]);
+
+            setCategoriasGasto(formularioData.categorias || []);
+            setCuentasMantenimiento(formularioData.cuentas || []);
+            setInmueblesFormularioGasto(formularioData.inmuebles || []);
+            setGastosMantenimiento(gastosData.gastos || []);
+
+            setFormGasto((prev) => ({
+                ...prev,
+                cuenta_bancaria_id:
+                    prev.cuenta_bancaria_id ||
+                    formularioData.cuentas?.[0]?.cuenta_bancaria_id ||
+                    0,
+                categoria_movimiento_id:
+                    prev.categoria_movimiento_id ||
+                    formularioData.categorias?.[0]?.categoria_movimiento_id ||
+                    0
+            }));
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Error al cargar datos de gastos de mantenimiento'
+            );
+        } finally {
+            setCargandoGastos(false);
+        }
+    };
+
     useEffect(() => {
         cargarInmuebles();
+        cargarDatosGastosMantenimiento();
     }, []);
 
     const seleccionarInmueble = (inmueble: InmuebleMantenimiento) => {
@@ -179,6 +260,138 @@ function GestionMantenimiento() {
         }
     };
 
+    const limpiarFormularioGasto = () => {
+        setFormGasto({
+            cuenta_bancaria_id:
+                cuentasMantenimiento[0]?.cuenta_bancaria_id || 0,
+            categoria_movimiento_id:
+                categoriasGasto[0]?.categoria_movimiento_id || 0,
+            inmueble_id: null,
+            fecha_movimiento: obtenerFechaActualInput(),
+            concepto: '',
+            descripcion: '',
+            importe: 0,
+            referencia_externa: '',
+            observaciones: ''
+        });
+    };
+
+    const registrarNuevoGasto = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        try {
+            setGuardandoGasto(true);
+            setError('');
+            setMensaje('');
+
+            if (!formGasto.cuenta_bancaria_id) {
+                setError('Selecciona una cuenta para registrar el gasto.');
+                return;
+            }
+
+            if (!formGasto.categoria_movimiento_id) {
+                setError('Selecciona una categoría de gasto.');
+                return;
+            }
+
+            if (!formGasto.concepto.trim()) {
+                setError('Ingresa el concepto del gasto.');
+                return;
+            }
+
+            if (!formGasto.importe || Number(formGasto.importe) <= 0) {
+                setError('El importe debe ser mayor a cero.');
+                return;
+            }
+
+            await registrarGastoMantenimiento({
+                ...formGasto,
+                cuenta_bancaria_id: Number(formGasto.cuenta_bancaria_id),
+                categoria_movimiento_id: Number(formGasto.categoria_movimiento_id),
+                inmueble_id: formGasto.inmueble_id
+                    ? Number(formGasto.inmueble_id)
+                    : null,
+                importe: Number(formGasto.importe)
+            });
+
+            setMensaje('Gasto de mantenimiento registrado correctamente.');
+            limpiarFormularioGasto();
+
+            await cargarDatosGastosMantenimiento();
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : 'Error al registrar el gasto de mantenimiento'
+            );
+        } finally {
+            setGuardandoGasto(false);
+        }
+    };
+
+    const formatearFechaGasto = (fecha: string) => {
+        if (!fecha) return '-';
+
+        const fechaObj = new Date(fecha);
+
+        if (Number.isNaN(fechaObj.getTime())) {
+            return '-';
+        }
+
+        return fechaObj.toLocaleDateString('es-PE', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    };
+
+    const formatearMonto = (
+        monto: number,
+        moneda: string = 'PEN'
+    ) => {
+        return new Intl.NumberFormat('es-PE', {
+            style: 'currency',
+            currency: moneda
+        }).format(Number(monto || 0));
+    };
+
+    const totalGastosMantenimiento = gastosMantenimiento.reduce(
+        (total, gasto) => total + Number(gasto.importe || 0),
+        0
+    );
+
+    const gastosFiltrados = gastosMantenimiento.filter((gasto) => {
+        const texto = filtroTextoGasto.trim().toLowerCase();
+
+        const coincideTexto =
+            !texto ||
+            gasto.concepto.toLowerCase().includes(texto) ||
+            (gasto.categoria || '').toLowerCase().includes(texto) ||
+            (gasto.inmueble || '').toLowerCase().includes(texto) ||
+            (gasto.referencia_externa || '').toLowerCase().includes(texto);
+
+        const coincideCategoria =
+            !filtroCategoriaGasto ||
+            String(gasto.categoria_movimiento_id) === filtroCategoriaGasto;
+
+        const coincideInmueble =
+            !filtroInmuebleGasto ||
+            String(gasto.inmueble_id || '') === filtroInmuebleGasto;
+
+        return coincideTexto && coincideCategoria && coincideInmueble;
+    });
+
+    const totalGastosFiltrados = gastosFiltrados.reduce(
+        (total, gasto) => total + Number(gasto.importe || 0),
+        0
+    );
+
+    const limpiarFiltrosGasto = () => {
+        setFiltroTextoGasto('');
+        setFiltroCategoriaGasto('');
+        setFiltroInmuebleGasto('');
+    };
+
     return (
         <div className="gestion-layout">
             <SidebarGestion />
@@ -313,6 +526,486 @@ function GestionMantenimiento() {
                         )}
                     </div>
                 </section>
+
+                <section className="gestion-card">
+                    <div className="section-title-row">
+                        <div>
+                            <h2>Gastos de mantenimiento</h2>
+                            <p>
+                                Registro financiero interno de reparaciones, servicios técnicos
+                                y otros gastos asociados a inmuebles.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="btn-gestion-secondary"
+                            onClick={cargarDatosGastosMantenimiento}
+                            disabled={cargandoGastos}
+                        >
+                            Actualizar gastos
+                        </button>
+                    </div>
+
+                    <form className="gestion-form" onSubmit={registrarNuevoGasto}>
+                        <div className="gestion-form-grid">
+                            <div className="gestion-field">
+                                <label>Cuenta</label>
+                                <select
+                                    value={formGasto.cuenta_bancaria_id}
+                                    onChange={(e) =>
+                                        setFormGasto({
+                                            ...formGasto,
+                                            cuenta_bancaria_id: Number(e.target.value)
+                                        })
+                                    }
+                                    disabled={guardandoGasto}
+                                >
+                                    <option value={0}>Selecciona una cuenta</option>
+                                    {cuentasMantenimiento.map((cuenta) => (
+                                        <option
+                                            key={cuenta.cuenta_bancaria_id}
+                                            value={cuenta.cuenta_bancaria_id}
+                                        >
+                                            {cuenta.nombre_cuenta} - {cuenta.moneda}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="gestion-field">
+                                <label>Categoría</label>
+                                <select
+                                    value={formGasto.categoria_movimiento_id}
+                                    onChange={(e) =>
+                                        setFormGasto({
+                                            ...formGasto,
+                                            categoria_movimiento_id: Number(e.target.value)
+                                        })
+                                    }
+                                    disabled={guardandoGasto}
+                                >
+                                    <option value={0}>Selecciona una categoría</option>
+                                    {categoriasGasto.map((categoria) => (
+                                        <option
+                                            key={categoria.categoria_movimiento_id}
+                                            value={categoria.categoria_movimiento_id}
+                                        >
+                                            {categoria.nombre}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="gestion-field">
+                                <label>Inmueble asociado</label>
+                                <select
+                                    value={formGasto.inmueble_id || ''}
+                                    onChange={(e) =>
+                                        setFormGasto({
+                                            ...formGasto,
+                                            inmueble_id: e.target.value
+                                                ? Number(e.target.value)
+                                                : null
+                                        })
+                                    }
+                                    disabled={guardandoGasto}
+                                >
+                                    <option value="">Sin inmueble asociado</option>
+                                    {inmueblesFormularioGasto.map((inmueble) => (
+                                        <option
+                                            key={inmueble.inmueble_id}
+                                            value={inmueble.inmueble_id}
+                                        >
+                                            {inmueble.codigo} - {inmueble.nombre}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="gestion-field">
+                                <label>Fecha del gasto</label>
+                                <input
+                                    type="datetime-local"
+                                    value={formGasto.fecha_movimiento}
+                                    onChange={(e) =>
+                                        setFormGasto({
+                                            ...formGasto,
+                                            fecha_movimiento: e.target.value
+                                        })
+                                    }
+                                    disabled={guardandoGasto}
+                                />
+                            </div>
+
+                            <div className="gestion-field">
+                                <label>Concepto</label>
+                                <input
+                                    value={formGasto.concepto}
+                                    onChange={(e) =>
+                                        setFormGasto({
+                                            ...formGasto,
+                                            concepto: e.target.value
+                                        })
+                                    }
+                                    placeholder="Ej: Reparación de tubería"
+                                    disabled={guardandoGasto}
+                                />
+                            </div>
+
+                            <div className="gestion-field">
+                                <label>Importe</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={formGasto.importe}
+                                    onChange={(e) =>
+                                        setFormGasto({
+                                            ...formGasto,
+                                            importe: Number(e.target.value)
+                                        })
+                                    }
+                                    disabled={guardandoGasto}
+                                />
+                            </div>
+
+                            <div className="gestion-field">
+                                <label>Referencia externa</label>
+                                <input
+                                    value={formGasto.referencia_externa || ''}
+                                    onChange={(e) =>
+                                        setFormGasto({
+                                            ...formGasto,
+                                            referencia_externa: e.target.value
+                                        })
+                                    }
+                                    placeholder="Ej: BOLETA-001"
+                                    disabled={guardandoGasto}
+                                />
+                            </div>
+
+                            <div className="gestion-field">
+                                <label>Descripción</label>
+                                <textarea
+                                    value={formGasto.descripcion || ''}
+                                    onChange={(e) =>
+                                        setFormGasto({
+                                            ...formGasto,
+                                            descripcion: e.target.value
+                                        })
+                                    }
+                                    placeholder="Describe brevemente el servicio o reparación."
+                                    disabled={guardandoGasto}
+                                />
+                            </div>
+
+                            <div className="gestion-field">
+                                <label>Observaciones</label>
+                                <textarea
+                                    value={formGasto.observaciones || ''}
+                                    onChange={(e) =>
+                                        setFormGasto({
+                                            ...formGasto,
+                                            observaciones: e.target.value
+                                        })
+                                    }
+                                    placeholder="Notas internas adicionales."
+                                    disabled={guardandoGasto}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="form-actions">
+                            <button
+                                type="submit"
+                                className="btn-gestion-primary"
+                                disabled={guardandoGasto}
+                            >
+                                {guardandoGasto ? 'Registrando...' : 'Registrar gasto'}
+                            </button>
+
+                            <button
+                                type="button"
+                                className="btn-gestion-secondary"
+                                onClick={limpiarFormularioGasto}
+                                disabled={guardandoGasto}
+                            >
+                                Limpiar
+                            </button>
+                        </div>
+                    </form>
+
+                    {cargandoGastos && <p>Cargando gastos de mantenimiento...</p>}
+
+                    {!cargandoGastos && (
+                        <>
+                            <div className="dashboard-grid">
+                                <div className="dashboard-card">
+                                    <h3>Categorías</h3>
+                                    <p>{categoriasGasto.length} disponibles</p>
+                                </div>
+
+                                <div className="dashboard-card">
+                                    <h3>Cuentas</h3>
+                                    <p>{cuentasMantenimiento.length} disponibles</p>
+                                </div>
+
+                                <div className="dashboard-card">
+                                    <h3>Gastos registrados</h3>
+                                    <p>{gastosMantenimiento.length} movimientos</p>
+                                    <strong>
+                                        {formatearMonto(totalGastosMantenimiento)}
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <div className="gestion-filter-card">
+                                <div>
+                                    <label>Buscar gasto</label>
+                                    <input
+                                        value={filtroTextoGasto}
+                                        onChange={(e) => setFiltroTextoGasto(e.target.value)}
+                                        placeholder="Buscar por concepto, referencia, categoría o inmueble"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label>Categoría</label>
+                                    <select
+                                        value={filtroCategoriaGasto}
+                                        onChange={(e) => setFiltroCategoriaGasto(e.target.value)}
+                                    >
+                                        <option value="">Todas</option>
+                                        {categoriasGasto.map((categoria) => (
+                                            <option
+                                                key={categoria.categoria_movimiento_id}
+                                                value={categoria.categoria_movimiento_id}
+                                            >
+                                                {categoria.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label>Inmueble</label>
+                                    <select
+                                        value={filtroInmuebleGasto}
+                                        onChange={(e) => setFiltroInmuebleGasto(e.target.value)}
+                                    >
+                                        <option value="">Todos</option>
+                                        {inmueblesFormularioGasto.map((inmueble) => (
+                                            <option
+                                                key={inmueble.inmueble_id}
+                                                value={inmueble.inmueble_id}
+                                            >
+                                                {inmueble.codigo} - {inmueble.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <p>
+                                        <strong>{gastosFiltrados.length}</strong> resultado(s)
+                                    </p>
+                                    <p>
+                                        Total filtrado:{' '}
+                                        <strong>{formatearMonto(totalGastosFiltrados)}</strong>
+                                    </p>
+
+                                    <button
+                                        type="button"
+                                        className="btn-gestion-secondary"
+                                        onClick={limpiarFiltrosGasto}
+                                    >
+                                        Limpiar filtros
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="tabla-responsive">
+                                <table className="gestion-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Concepto</th>
+                                            <th>Categoría</th>
+                                            <th>Inmueble</th>
+                                            <th>Importe</th>
+                                            <th>Referencia</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        {gastosFiltrados.length === 0 && (
+                                            <tr>
+                                                <td colSpan={7}>
+                                                    No hay gastos de mantenimiento registrados.
+                                                </td>
+                                            </tr>
+                                        )}
+
+                                        {gastosFiltrados.map((gasto) => (
+                                            <tr key={gasto.movimiento_bancario_id}>
+                                                <td>
+                                                    {formatearFechaGasto(gasto.fecha_movimiento)}
+                                                </td>
+                                                <td>{gasto.concepto}</td>
+                                                <td>{gasto.categoria || '-'}</td>
+                                                <td>
+                                                    {gasto.inmueble
+                                                        ? `${gasto.codigo_inmueble || ''} ${gasto.inmueble}`
+                                                        : 'Sin inmueble asociado'}
+                                                </td>
+                                                <td>
+                                                    {formatearMonto(
+                                                        Number(gasto.importe),
+                                                        gasto.moneda || 'PEN'
+                                                    )}
+                                                </td>
+                                                <td>{gasto.referencia_externa || '-'}</td>
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        className="btn-gestion-secondary btn-tabla"
+                                                        onClick={() => setGastoSeleccionado(gasto)}
+                                                    >
+                                                        Ver detalle
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+                </section>
+
+                {gastoSeleccionado && (
+                    <div className="modal-overlay">
+                        <div className="modal-card modal-card-wide">
+                            <div className="modal-header">
+                                <div>
+                                    <h2>Detalle del gasto</h2>
+                                    <p>
+                                        Información completa del movimiento financiero registrado.
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="modal-close"
+                                    onClick={() => setGastoSeleccionado(null)}
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            <div className="detalle-confirmacion">
+                                <p>
+                                    <strong>Fecha:</strong>{' '}
+                                    {formatearFechaGasto(gastoSeleccionado.fecha_movimiento)}
+                                </p>
+
+                                <p>
+                                    <strong>Concepto:</strong>{' '}
+                                    {gastoSeleccionado.concepto}
+                                </p>
+
+                                <p>
+                                    <strong>Categoría:</strong>{' '}
+                                    {gastoSeleccionado.categoria || '-'}
+                                </p>
+
+                                <p>
+                                    <strong>Importe:</strong>{' '}
+                                    {formatearMonto(
+                                        Number(gastoSeleccionado.importe),
+                                        gastoSeleccionado.moneda || 'PEN'
+                                    )}
+                                </p>
+
+                                <p>
+                                    <strong>Referencia:</strong>{' '}
+                                    {gastoSeleccionado.referencia_externa || '-'}
+                                </p>
+                            </div>
+
+                            <div className="detalle-confirmacion">
+                                <p>
+                                    <strong>Cuenta:</strong>{' '}
+                                    {gastoSeleccionado.nombre_cuenta || '-'}
+                                </p>
+
+                                <p>
+                                    <strong>Número de cuenta:</strong>{' '}
+                                    {gastoSeleccionado.numero_cuenta || '-'}
+                                </p>
+
+                                <p>
+                                    <strong>Saldo anterior:</strong>{' '}
+                                    {formatearMonto(
+                                        Number(gastoSeleccionado.saldo_anterior),
+                                        gastoSeleccionado.moneda || 'PEN'
+                                    )}
+                                </p>
+
+                                <p>
+                                    <strong>Saldo posterior:</strong>{' '}
+                                    {formatearMonto(
+                                        Number(gastoSeleccionado.saldo_posterior),
+                                        gastoSeleccionado.moneda || 'PEN'
+                                    )}
+                                </p>
+                            </div>
+
+                            <div className="detalle-confirmacion">
+                                <p>
+                                    <strong>Inmueble asociado:</strong>{' '}
+                                    {gastoSeleccionado.inmueble
+                                        ? `${gastoSeleccionado.codigo_inmueble || ''} ${gastoSeleccionado.inmueble}`
+                                        : 'Sin inmueble asociado'}
+                                </p>
+
+                                <p>
+                                    <strong>Tipo de inmueble:</strong>{' '}
+                                    {gastoSeleccionado.tipo_inmueble || '-'}
+                                </p>
+                            </div>
+
+                            <div className="detalle-confirmacion">
+                                <p>
+                                    <strong>Descripción:</strong>
+                                </p>
+                                <p>
+                                    {gastoSeleccionado.descripcion || 'Sin descripción registrada.'}
+                                </p>
+
+                                <p>
+                                    <strong>Observaciones:</strong>
+                                </p>
+                                <p>
+                                    {gastoSeleccionado.observaciones || 'Sin observaciones registradas.'}
+                                </p>
+                            </div>
+
+                            <div className="form-actions modal-actions">
+                                <button
+                                    type="button"
+                                    className="btn-gestion-secondary"
+                                    onClick={() => setGastoSeleccionado(null)}
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {modoEdicion && formEdicion && inmuebleSeleccionado && (
                     <div className="modal-overlay">
                         <div className="modal-card modal-card-wide">
