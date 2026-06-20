@@ -23,6 +23,7 @@ import GestionPublicacion from './pages/GestionPublicacion';
 import MisSolicitudesReserva from './pages/MisSolicitudesReserva';
 import GestionSolicitudesReserva from './pages/GestionSolicitudesReserva';
 import GestionConceptosCobro from './pages/GestionConceptosCobro';
+import MisPagos from './pages/MisPagos';
 
 function App() {
   return (
@@ -111,6 +112,7 @@ function App() {
                 </RutaGestionReservas>
             }
         />
+        <Route path="/Mispagos" element={<MisPagos />} />
       </Routes>
     </BrowserRouter>
   );

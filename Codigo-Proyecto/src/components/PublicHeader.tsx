@@ -63,7 +63,9 @@ function PublicHeader({
         ? 'Administrador'
         : esSecretario
             ? 'Secretario'
-            : 'Usuario';
+            : esCliente
+                ? 'Cliente'
+                : 'Usuario';
 
     return (
         <header className="main-header">
@@ -113,6 +115,7 @@ function PublicHeader({
                         </Link>
                     </>
                 )}
+
                 {usuarioSesion && (
                     <NotificacionesCampana />
                 )}
@@ -160,16 +163,29 @@ function PublicHeader({
                                 </button>
 
                                 {esCliente && (
-                                    <button
-                                        type="button"
-                                        className="user-dropdown-item"
-                                        onClick={() => {
-                                            setMenuAbierto(false);
-                                            navigate('/MisSolicitudesReserva');
-                                        }}
-                                    >
-                                        Mis reservas
-                                    </button>
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="user-dropdown-item"
+                                            onClick={() => {
+                                                setMenuAbierto(false);
+                                                navigate('/MisSolicitudesReserva');
+                                            }}
+                                        >
+                                            Mis reservas
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            className="user-dropdown-item"
+                                            onClick={() => {
+                                                setMenuAbierto(false);
+                                                navigate('/MisPagos');
+                                            }}
+                                        >
+                                            Mis pagos
+                                        </button>
+                                    </>
                                 )}
 
                                 {puedeEntrarGestion && (

@@ -17,6 +17,7 @@ const secretarioRoutes = require('./routes/secretario.routes');
 const notificacionRoutes = require('./routes/notificacion.routes');
 const conceptoCobroRoutes = require('./routes/conceptoCobro.routes');
 const reciboRoutes = require('./routes/recibo.routes');
+const pagoRoutes = require('./routes/pago.routes');
 const app = express();
 
 app.use(cors());
@@ -35,6 +36,7 @@ app.use('/api/secretarios', secretarioRoutes);
 app.use('/api/notificaciones', notificacionRoutes);
 app.use('/api/conceptos-cobro', conceptoCobroRoutes);
 app.use('/api/recibos', reciboRoutes);
+app.use('/api/pagos', pagoRoutes);
 
 app.get('/', (req, res) => {
   res.json({
