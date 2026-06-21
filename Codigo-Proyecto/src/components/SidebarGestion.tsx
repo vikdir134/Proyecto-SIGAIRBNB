@@ -148,6 +148,11 @@ function SidebarGestion() {
                             <NavLink to="/gestion/conceptos-cobro">
                                 Conceptos de cobro
                             </NavLink>
+
+                            <NavLink to="/gestion/ingresos-alquiler" className="sidebar-link">
+                            Ingresos de alquiler
+                            </NavLink>
+
                             <NavLink to="/GestionAdmin">
                                 Mantenimiento Admin
                             </NavLink>
@@ -164,12 +169,20 @@ function SidebarGestion() {
                             <NavLink to="/gestion/conceptos-cobro">
                                 Conceptos de cobro
                             </NavLink>
+
+                            <NavLink to="/gestion/ingresos-alquiler" className="sidebar-link">
+                            Ingresos de alquiler
+                            </NavLink>
                         </>
                     )}
 
                     <NavLink to="/GestionPerfil">
                         Perfil
                     </NavLink>
+
+                     
+
+                    
                 </nav>
             </div>
 

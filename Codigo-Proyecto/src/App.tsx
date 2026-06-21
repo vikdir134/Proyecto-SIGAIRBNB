@@ -24,6 +24,7 @@ import MisSolicitudesReserva from './pages/MisSolicitudesReserva';
 import GestionSolicitudesReserva from './pages/GestionSolicitudesReserva';
 import GestionConceptosCobro from './pages/GestionConceptosCobro';
 import MisPagos from './pages/MisPagos';
+import GestionIngresosAlquiler from './pages/GestionIngresosAlquiler';
 
 function App() {
   return (
@@ -103,6 +104,15 @@ function App() {
                 </RutaAdmin>
             }
         />
+
+        <Route
+    path="/gestion/ingresos-alquiler"
+    element={
+        <RutaGestionReservas>
+            <GestionIngresosAlquiler />
+        </RutaGestionReservas>
+    }
+/>
         <Route path="/MisSolicitudesReserva" element={<MisSolicitudesReserva />} />
         <Route
             path="/GestionSolicitudesReserva"

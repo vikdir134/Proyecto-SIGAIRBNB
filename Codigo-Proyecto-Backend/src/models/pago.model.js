@@ -92,7 +92,7 @@ const registrarPagoOnline = async ({
   usuario_id,
   recibo_id,
   metodo_pago = 'ONLINE',
-  proveedor_pasarela = 'SIMULADO',
+  proveedor_pasarela = null,
   referencia = null
 }) => {
   const pool = await getConnection();
@@ -101,28 +101,8 @@ const registrarPagoOnline = async ({
   try {
     await transaction.begin();
 
-    const metodoPagoNormalizado = String(metodo_pago).trim().toUpperCase();
-
-    const metodosPermitidos = [
-      'ONLINE',
-      'TARJETA',
-      'TRANSFERENCIA',
-      'EFECTIVO'
-    ];
-
-    if (!metodosPermitidos.includes(metodoPagoNormalizado)) {
-      await transaction.rollback();
-
-      return {
-        ok: false,
-        status: 400,
-        mensaje: 'Método de pago no válido.'
-      };
-    }
-
-    const requestRecibo = new sql.Request(transaction);
-
-    const reciboResult = await requestRecibo
+    const reciboResult = await new sql.Request(transaction)
+      .input('empresa_id', sql.Int, empresa_id)
       .input('usuario_id', sql.Int, usuario_id)
       .input('recibo_id', sql.Int, recibo_id)
       .query(`
@@ -132,83 +112,74 @@ const registrarPagoOnline = async ({
           r.estado_recibo,
           r.total,
           r.saldo_pendiente,
+
+          res.inquilino_id,
           COALESCE(res.moneda, i.moneda, 'PEN') AS moneda,
+
+          i.inmueble_id,
           i.empresa_id,
-          res.inquilino_id
+          i.codigo AS codigo_inmueble,
+          i.nombre AS nombre_inmueble
         FROM finance.Recibo r WITH (UPDLOCK, ROWLOCK)
-        INNER JOIN finance.CuentaCobroInmueble cc
-          ON cc.cuenta_cobro_inmueble_id = r.cuenta_cobro_inmueble_id
-        INNER JOIN catalog.Inmueble i
-          ON i.inmueble_id = cc.inmueble_id
         INNER JOIN booking.Reserva res
           ON res.reserva_id = r.reserva_id
+        INNER JOIN catalog.Inmueble i
+          ON i.inmueble_id = res.inmueble_id
         WHERE r.recibo_id = @recibo_id
+          AND i.empresa_id = @empresa_id
           AND res.inquilino_id = @usuario_id;
       `);
 
     const recibo = reciboResult.recordset[0];
 
     if (!recibo) {
-      await transaction.rollback();
-
-      return {
-        ok: false,
-        status: 404,
-        mensaje: 'Recibo no encontrado o no pertenece al inquilino.'
-      };
+      throw new Error('RECIBO_NO_VALIDO');
     }
 
     if (recibo.estado_recibo === 'ANULADO') {
-      await transaction.rollback();
-
-      return {
-        ok: false,
-        status: 400,
-        mensaje: 'No se puede pagar un recibo anulado.'
-      };
+      throw new Error('RECIBO_ANULADO');
     }
 
-    if (recibo.estado_recibo === 'PAGADO' || Number(recibo.saldo_pendiente) <= 0) {
-      await transaction.rollback();
-
-      return {
-        ok: false,
-        status: 400,
-        mensaje: 'Este recibo ya se encuentra pagado.'
-      };
+    if (
+      recibo.estado_recibo === 'PAGADO' ||
+      Number(recibo.saldo_pendiente) <= 0
+    ) {
+      throw new Error('RECIBO_YA_PAGADO');
     }
 
-    const montoPago = Number(recibo.saldo_pendiente);
-    const transaccionExterna = `SIM-${metodoPagoNormalizado}-${Date.now()}-${recibo_id}`;
+    const monto = Number(recibo.saldo_pendiente);
 
-    const proveedorPasarelaFinal =
-      metodoPagoNormalizado === 'ONLINE' || metodoPagoNormalizado === 'TARJETA'
-        ? proveedor_pasarela || 'SIMULADO'
-        : null;
+    const metodoPagoNormalizado = String(metodo_pago || 'ONLINE')
+      .trim()
+      .toUpperCase();
 
-    const observacionesPago =
-      metodoPagoNormalizado === 'ONLINE'
-        ? 'Pago online simulado confirmado correctamente.'
-        : metodoPagoNormalizado === 'TARJETA'
-          ? 'Pago con tarjeta simulado confirmado correctamente.'
-          : metodoPagoNormalizado === 'TRANSFERENCIA'
-            ? 'Pago por transferencia registrado como confirmado.'
-            : 'Pago en efectivo registrado como confirmado.';
+    const metodosPermitidos = [
+      'ONLINE',
+      'TARJETA',
+      'TRANSFERENCIA',
+      'EFECTIVO'
+    ];
 
-    const requestPago = new sql.Request(transaction);
+    if (!metodosPermitidos.includes(metodoPagoNormalizado)) {
+      throw new Error('METODO_PAGO_NO_VALIDO');
+    }
 
-    const pagoResult = await requestPago
+    const fechaPago = new Date();
+
+    const pagoResult = await new sql.Request(transaction)
       .input('recibo_id', sql.Int, recibo.recibo_id)
       .input('reserva_id', sql.Int, recibo.reserva_id)
       .input('usuario_pagador_id', sql.Int, usuario_id)
       .input('metodo_pago', sql.NVarChar(20), metodoPagoNormalizado)
-      .input('proveedor_pasarela', sql.NVarChar(100), proveedorPasarelaFinal)
-      .input('transaccion_externa', sql.NVarChar(150), transaccionExterna)
+      .input('proveedor_pasarela', sql.NVarChar(100), proveedor_pasarela)
+      .input('transaccion_externa', sql.NVarChar(150), `ONLINE-${Date.now()}-${recibo.recibo_id}`)
       .input('referencia', sql.NVarChar(150), referencia)
-      .input('monto', sql.Decimal(12, 2), montoPago)
+      .input('monto', sql.Decimal(12, 2), monto)
       .input('moneda', sql.Char(3), recibo.moneda || 'PEN')
       .input('estado_pago', sql.NVarChar(20), 'CONFIRMADO')
-      .input('observaciones', sql.NVarChar(500), observacionesPago)
+      .input('fecha_pago', sql.DateTime2, fechaPago)
+      .input('fecha_confirmacion', sql.DateTime2, fechaPago)
+      .input('observaciones', sql.NVarChar(500), 'Pago online confirmado por el inquilino.')
       .query(`
         INSERT INTO finance.Pago (
           recibo_id,
@@ -237,17 +208,127 @@ const registrarPagoOnline = async ({
           @monto,
           @moneda,
           @estado_pago,
-          SYSDATETIME(),
-          SYSDATETIME(),
+          @fecha_pago,
+          @fecha_confirmacion,
           @observaciones
         );
       `);
 
     const pago = pagoResult.recordset[0];
 
-    const requestUpdate = new sql.Request(transaction);
+    const categoriaResult = await new sql.Request(transaction)
+      .query(`
+        SELECT TOP 1
+          categoria_movimiento_id,
+          nombre
+        FROM finance.CategoriaMovimiento
+        WHERE naturaleza = 'INGRESO'
+          AND activo = 1
+          AND nombre LIKE '%alquiler%'
+        ORDER BY categoria_movimiento_id ASC;
+      `);
 
-    await requestUpdate
+    const categoria = categoriaResult.recordset[0];
+
+    if (!categoria) {
+      throw new Error('CATEGORIA_INGRESO_NO_CONFIGURADA');
+    }
+
+    const cuentaResult = await new sql.Request(transaction)
+      .input('empresa_id', sql.Int, empresa_id)
+      .query(`
+        SELECT TOP 1
+          cuenta_bancaria_id,
+          empresa_id,
+          nombre_cuenta,
+          saldo_actual,
+          moneda
+        FROM finance.CuentaBancaria WITH (UPDLOCK, ROWLOCK)
+        WHERE empresa_id = @empresa_id
+          AND activa = 1
+        ORDER BY
+          CASE
+            WHEN nombre_cuenta LIKE '%Caja Principal%' THEN 0
+            ELSE 1
+          END,
+          cuenta_bancaria_id ASC;
+      `);
+
+    const cuenta = cuentaResult.recordset[0];
+
+    if (!cuenta) {
+      throw new Error('CUENTA_TESORERIA_NO_CONFIGURADA');
+    }
+
+    const saldoAnterior = Number(cuenta.saldo_actual || 0);
+    const saldoPosterior = Math.round((saldoAnterior + monto + Number.EPSILON) * 100) / 100;
+
+    const movimientoResult = await new sql.Request(transaction)
+      .input('cuenta_bancaria_id', sql.Int, cuenta.cuenta_bancaria_id)
+      .input('categoria_movimiento_id', sql.Int, categoria.categoria_movimiento_id)
+      .input('tipo_movimiento', sql.NVarChar(20), 'INGRESO')
+      .input('inmueble_id', sql.Int, recibo.inmueble_id)
+      .input('reserva_id', sql.Int, recibo.reserva_id)
+      .input('recibo_id', sql.Int, recibo.recibo_id)
+      .input('pago_id', sql.Int, pago.pago_id)
+      .input('fecha_movimiento', sql.DateTime2, fechaPago)
+      .input('concepto', sql.NVarChar(200), `Cobro de alquiler - Recibo #${recibo.recibo_id}`)
+      .input('descripcion', sql.NVarChar(500), `Pago online del alquiler del inmueble ${recibo.nombre_inmueble || recibo.codigo_inmueble}.`)
+      .input('importe', sql.Decimal(14, 2), monto)
+      .input('saldo_anterior', sql.Decimal(14, 2), saldoAnterior)
+      .input('saldo_posterior', sql.Decimal(14, 2), saldoPosterior)
+      .input('referencia_externa', sql.NVarChar(150), referencia)
+      .input('observaciones', sql.NVarChar(500), 'Movimiento generado automáticamente desde el pago online.')
+      .query(`
+        INSERT INTO finance.MovimientoBancario (
+          cuenta_bancaria_id,
+          categoria_movimiento_id,
+          tipo_movimiento,
+          inmueble_id,
+          reserva_id,
+          recibo_id,
+          pago_id,
+          fecha_movimiento,
+          concepto,
+          descripcion,
+          importe,
+          saldo_anterior,
+          saldo_posterior,
+          referencia_externa,
+          observaciones
+        )
+        OUTPUT INSERTED.*
+        VALUES (
+          @cuenta_bancaria_id,
+          @categoria_movimiento_id,
+          @tipo_movimiento,
+          @inmueble_id,
+          @reserva_id,
+          @recibo_id,
+          @pago_id,
+          @fecha_movimiento,
+          @concepto,
+          @descripcion,
+          @importe,
+          @saldo_anterior,
+          @saldo_posterior,
+          @referencia_externa,
+          @observaciones
+        );
+      `);
+
+    const movimiento = movimientoResult.recordset[0];
+
+    await new sql.Request(transaction)
+      .input('cuenta_bancaria_id', sql.Int, cuenta.cuenta_bancaria_id)
+      .input('saldo_actual', sql.Decimal(14, 2), saldoPosterior)
+      .query(`
+        UPDATE finance.CuentaBancaria
+        SET saldo_actual = @saldo_actual
+        WHERE cuenta_bancaria_id = @cuenta_bancaria_id;
+      `);
+
+    await new sql.Request(transaction)
       .input('recibo_id', sql.Int, recibo.recibo_id)
       .query(`
         UPDATE finance.Recibo
@@ -261,25 +342,22 @@ const registrarPagoOnline = async ({
     await transaction.commit();
 
     return {
-      ok: true,
       pago,
-      monto_pagado: montoPago
+      movimiento,
+      recibo_actualizado: {
+        recibo_id: recibo.recibo_id,
+        estado_recibo: 'PAGADO',
+        saldo_pendiente: 0
+      }
     };
-
   } catch (error) {
     try {
       await transaction.rollback();
     } catch (rollbackError) {
-      console.error('Error haciendo rollback del pago:', rollbackError);
+      console.error('Error haciendo rollback del pago online:', rollbackError);
     }
 
-    console.error('Error registrando pago:', error);
-
-    return {
-      ok: false,
-      status: 500,
-      mensaje: 'Error interno al procesar el pago.'
-    };
+    throw error;
   }
 };
 

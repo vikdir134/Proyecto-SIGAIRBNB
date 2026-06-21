@@ -19,6 +19,8 @@ const conceptoCobroRoutes = require('./routes/conceptoCobro.routes');
 const reciboRoutes = require('./routes/recibo.routes');
 const pagoRoutes = require('./routes/pago.routes');
 const mantenimientoRoutes = require('./routes/mantenimiento.routes');
+const ingresoAlquilerRoutes = require('./routes/ingresoAlquiler.routes');
+
 const app = express();
 
 app.use(cors());
@@ -39,6 +41,7 @@ app.use('/api/conceptos-cobro', conceptoCobroRoutes);
 app.use('/api/recibos', reciboRoutes);
 app.use('/api/pagos', pagoRoutes);
 app.use('/api/mantenimiento', mantenimientoRoutes);
+app.use('/api/ingresos-alquiler', ingresoAlquilerRoutes);
 
 app.get('/', (req, res) => {
   res.json({
@@ -102,4 +105,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor backend ejecutándose en http://localhost:${PORT}`);
 });
-
