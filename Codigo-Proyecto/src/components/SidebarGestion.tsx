@@ -20,13 +20,14 @@ function SidebarGestion() {
 
         /*
             Primero leemos el usuario guardado después del login.
-            Ahí deberían venir los roles: CLIENTE, ADMIN, etc.
+            Ahí deberían venir los roles: CLIENTE, ADMIN, SECRETARIO, etc.
         */
         const usuarioGuardado = localStorage.getItem('usuario');
 
         if (usuarioGuardado) {
             try {
                 const usuario = JSON.parse(usuarioGuardado);
+
                 const roles: string[] = Array.isArray(usuario.roles)
                     ? usuario.roles
                     : [];
@@ -145,12 +146,17 @@ function SidebarGestion() {
                             <NavLink to="/GestionSolicitudesReserva">
                                 Solicitudes de reserva
                             </NavLink>
+
                             <NavLink to="/gestion/conceptos-cobro">
                                 Conceptos de cobro
                             </NavLink>
 
                             <NavLink to="/gestion/ingresos-alquiler" className="sidebar-link">
-                            Ingresos de alquiler
+                                Ingresos de alquiler
+                            </NavLink>
+
+                            <NavLink to="/GestionTarifas" className="sidebar-link">
+                                Tarifas / IPC
                             </NavLink>
 
                             <NavLink to="/GestionAdmin">
@@ -171,7 +177,11 @@ function SidebarGestion() {
                             </NavLink>
 
                             <NavLink to="/gestion/ingresos-alquiler" className="sidebar-link">
-                            Ingresos de alquiler
+                                Ingresos de alquiler
+                            </NavLink>
+
+                            <NavLink to="/GestionTarifas" className="sidebar-link">
+                                Tarifas / IPC
                             </NavLink>
                         </>
                     )}
@@ -179,10 +189,6 @@ function SidebarGestion() {
                     <NavLink to="/GestionPerfil">
                         Perfil
                     </NavLink>
-
-                     
-
-                    
                 </nav>
             </div>
 
