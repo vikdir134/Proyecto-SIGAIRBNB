@@ -14,3 +14,7 @@ pnpm-debug.log*
 # Build
 dist/
 build/
+
+Codigo-Proyecto-Backend/.env
+Codigo-Proyecto/.env
+Codigo-Proyecto/.env.local
